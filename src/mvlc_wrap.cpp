@@ -90,7 +90,7 @@ mvlc_init_readout(mvlc_t a_mvlc)
 	auto result = init_readout(m->mvlc, m->config, {});
 
 	printf("mvlc_init_readout\n");
-	std::cout << "init_readout result = " << result.init << std::endl;
+	//std::cout << "init_readout result = " << result.init << std::endl;
 
 	rc = result.ec.value();
 	if (rc != 0) {
@@ -114,6 +114,7 @@ mvlc_init_readout(mvlc_t a_mvlc)
 int
 send_empty_request(MVLC *a_mvlc)
 {
+	/*
 	size_t bytesTransferred = 0;
 
 	static const uint32_t empty_request[2] = {
@@ -130,7 +131,8 @@ send_empty_request(MVLC *a_mvlc)
 		printf("Failure writing empty request.\n");
 		abort();
 	}
-
+	*/
+	(void) a_mvlc;
 	return 0;
 }
 
