@@ -63,7 +63,7 @@ mvlc_stop(mvlc_t a_mvlc)
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 
 	/* perhaps try this a couple of times */
-	auto ec = disable_all_triggers(m->mvlc);
+	auto ec = disable_all_triggers_and_daq_mode(m->mvlc);
 	if (ec) {
 		printf("'%s'\n", ec.message().c_str());
 		abort();
@@ -90,7 +90,7 @@ mvlc_init_readout(mvlc_t a_mvlc)
 	auto result = init_readout(m->mvlc, m->config, {});
 
 	printf("mvlc_init_readout\n");
-	std::cout << "init_readout result = " << result.init << std::endl;
+	// std::cout << "init_readout result = " << result.init << std::endl;
 
 	rc = result.ec.value();
 	if (rc != 0) {
@@ -120,7 +120,7 @@ send_empty_request(MVLC *a_mvlc)
 		0xf1000000, 0xf2000000
 	};
 
-	auto ec = a_mvlc->write(Pipe::Data,
+	auto ec = a_mvlc->getImpl()->write(Pipe::Data,
 	    reinterpret_cast<const uint8_t *>(empty_request),
 	    2 * sizeof(uint32_t), bytesTransferred);
 
@@ -205,4 +205,50 @@ mvlc_readout_eth(mvlc_t a_mvlc, uint8_t **a_buffer, size_t bytes_free)
 	*a_buffer += bytes_transferred;
 
 	return rc;
+}
+
+int
+mvlc_single_vme_read(mvlc_t a_mvlc, uint32_t address, uint32_t * value, uint8_t  amod, uint8_t dataWidth)
+{
+  int rc;
+
+  auto m = static_cast<struct mvlcc *>(a_mvlc);
+
+  mesytec::mvlc::VMEDataWidth m_width = static_cast<mesytec::mvlc::VMEDataWidth>(dataWidth);
+  // mesytec::mvlc::u32 * m_value = (mesytec::mvlc::u32 *) value;
+
+  auto ec = m->mvlc.vmeRead(address, *value, vme_amods::A32, VMEDataWidth::D16);
+  // auto ec = m->mvlc.vmeRead(address, *m_value, amod, VMEDataWidth::D16);
+  rc = ec.value();
+  if (rc != 0) {
+    printf("Failure in vmeRead %d\n", rc);
+    abort();
+  }
+
+  printf("\nvalue = %x\n", *value);
+
+  (void) amod;
+  (void) m_width;
+
+  return rc;
+}
+
+int
+mvlc_single_vme_write(mvlc_t a_mvlc, uint32_t address, uint32_t value, uint8_t amod, uint8_t dataWidth)
+{
+  int rc;
+
+  auto m = static_cast<struct mvlcc *>(a_mvlc);
+
+  auto ec = m->mvlc.vmeWrite(address, value, vme_amods::A32, VMEDataWidth::D16);
+  rc = ec.value();
+  if (rc != 0) {
+    printf("Failure in vmeWrite %d\n", rc);
+    abort();
+  }
+
+  (void) amod;
+  (void) dataWidth;
+
+  return rc;
 }
