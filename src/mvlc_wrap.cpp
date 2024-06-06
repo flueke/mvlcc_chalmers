@@ -3,6 +3,14 @@
 #include <mvlc_factory.h>
 #include <mvlc_wrap.h>
 
+enum {
+    A16 = 0x29,
+    A24 = 0x39,
+    A32 = 0x09,
+    D16 = 0x1,
+    D32 = 0x2
+};
+
 using namespace mesytec::mvlc;
 
 struct mvlcc
@@ -207,17 +215,43 @@ mvlc_readout_eth(mvlc_t a_mvlc, uint8_t **a_buffer, size_t bytes_free)
 	return rc;
 }
 
+uint8_t
+mode_from_str(const char* modStr)
+{
+  uint8_t mode;
+  if (strcmp(modStr, "A16") == 0) {
+    mode = A16;
+  } else if (strcmp(modStr, "A24") == 0) {
+    mode = A24;
+  } else if (strcmp(modStr, "A32") == 0) {
+    mode = A32;
+  } else if (strcmp(modStr, "D16") == 0) {
+    mode = D16;
+  } else if (strcmp(modStr, "D32") == 0) {
+    mode = D32;
+  } else {
+    fprintf(stderr, "Invalid mode: %s\n", modStr);
+    return 1;
+  }
+
+  return mode;
+}
+
 int
-mvlc_single_vme_read(mvlc_t a_mvlc, uint32_t address, uint32_t * value, uint8_t  amod, uint8_t dataWidth)
+mvlc_single_vme_read(mvlc_t a_mvlc, uint32_t address, uint32_t * value, const char *  amod, const char * dataWidth)
 {
   int rc;
 
   auto m = static_cast<struct mvlcc *>(a_mvlc);
 
-  mesytec::mvlc::VMEDataWidth m_width = static_cast<mesytec::mvlc::VMEDataWidth>(dataWidth);
+  //  mesytec::mvlc::VMEDataWidth m_width = static_cast<mesytec::mvlc::VMEDataWidth>(dataWidth);
   // mesytec::mvlc::u32 * m_value = (mesytec::mvlc::u32 *) value;
 
-  auto ec = m->mvlc.vmeRead(address, *value, vme_amods::A32, VMEDataWidth::D16);
+  uint8_t mode = mode_from_str(amod);
+  uint8_t dWidth = mode_from_str(dataWidth);
+  mesytec::mvlc::VMEDataWidth m_width = static_cast<mesytec::mvlc::VMEDataWidth>(dWidth);
+
+  auto ec = m->mvlc.vmeRead(address, *value, mode, m_width);
   // auto ec = m->mvlc.vmeRead(address, *m_value, amod, VMEDataWidth::D16);
   rc = ec.value();
   if (rc != 0) {
@@ -227,28 +261,26 @@ mvlc_single_vme_read(mvlc_t a_mvlc, uint32_t address, uint32_t * value, uint8_t 
 
   printf("\nvalue = %x\n", *value);
 
-  (void) amod;
-  (void) m_width;
-
   return rc;
 }
 
 int
-mvlc_single_vme_write(mvlc_t a_mvlc, uint32_t address, uint32_t value, uint8_t amod, uint8_t dataWidth)
+mvlc_single_vme_write(mvlc_t a_mvlc, uint32_t address, uint32_t value, const char * amod, const char * dataWidth)
 {
   int rc;
 
   auto m = static_cast<struct mvlcc *>(a_mvlc);
 
-  auto ec = m->mvlc.vmeWrite(address, value, vme_amods::A32, VMEDataWidth::D16);
+  uint8_t mode = mode_from_str(amod);
+  uint8_t dWidth = mode_from_str(dataWidth);
+  mesytec::mvlc::VMEDataWidth m_width = static_cast<mesytec::mvlc::VMEDataWidth>(dWidth);
+
+  auto ec = m->mvlc.vmeWrite(address, value, mode, m_width);
   rc = ec.value();
   if (rc != 0) {
     printf("Failure in vmeWrite %d\n", rc);
     abort();
   }
-
-  (void) amod;
-  (void) dataWidth;
-
+  //
   return rc;
 }

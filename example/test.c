@@ -16,7 +16,7 @@ int main(){
   uint16_t regAddr = 0x6008u;
   uint32_t readValue = 0u;
 
-  ec = mvlc_single_vme_read(mvlc, vmeBase + regAddr, &readValue, 178, 0);
+  ec = mvlc_single_vme_read(mvlc, vmeBase + regAddr, &readValue, "A16", "D16");
 
   if (ec)
     {
@@ -26,15 +26,15 @@ int main(){
 
   regAddr = 0x6004u;
   
-  ec = mvlc_single_vme_write(mvlc, vmeBase + regAddr, 9, 178, 0);
+  ec = mvlc_single_vme_write(mvlc, vmeBase + regAddr, 9, "A16", "D16");
 
   if (ec)
     {
       fprintf(stderr, "Could not write @ 0x%08x.\n", vmeBase + regAddr);
       return 1;
     }
-
-  ec = mvlc_single_vme_read(mvlc, vmeBase + regAddr, &readValue, 178, 0);
+  
+  ec = mvlc_single_vme_read(mvlc, vmeBase + regAddr, &readValue, "A16", "D16");
 
   if (ec)
     {
