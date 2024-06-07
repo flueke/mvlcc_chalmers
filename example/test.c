@@ -8,7 +8,7 @@ int main(){
 
   if (ec = mvlc_connect(mvlc))
     {
-      printf("Could not connect\n");
+      fprintf(stderr, "Could not connect.\n");
       return 1;
     }
   
