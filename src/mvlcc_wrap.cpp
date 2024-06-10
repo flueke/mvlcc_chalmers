@@ -1,7 +1,8 @@
 #include <mesytec-mvlc.h>
 #include <mvlc.h>
 #include <mvlc_factory.h>
-#include <mvlc_wrap.h>
+
+#include <mvlcc_wrap.h>
 
 using namespace mesytec::mvlc;
 

@@ -1,5 +1,5 @@
-#include <mvlc_readout_config.h>
-#include <mvlc_wrap.h>
+#include <mvlcc_readout_config.h>
+#include <mvlcc_wrap.h>
 #include <stdio.h>
 
 int main(){
