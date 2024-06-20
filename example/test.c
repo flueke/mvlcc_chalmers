@@ -8,7 +8,7 @@ int main(){
 
   if (ec = mvlc_connect(mvlc))
     {
-      printf("Could not connect\n");
+      fprintf(stderr, "Could not connect.\n");
       return 1;
     }
   
@@ -18,10 +18,29 @@ int main(){
 
   ec = mvlc_single_vme_read(mvlc, vmeBase + regAddr, &readValue, 178, 0);
 
+  if (ec)
+    {
+      fprintf(stderr, "Could not read @ 0x%08x.\n", vmeBase + regAddr);
+      return 1;
+    }
+
   regAddr = 0x6004u;
   
   ec = mvlc_single_vme_write(mvlc, vmeBase + regAddr, 9, 178, 0);
+
+  if (ec)
+    {
+      fprintf(stderr, "Could not write @ 0x%08x.\n", vmeBase + regAddr);
+      return 1;
+    }
+
   ec = mvlc_single_vme_read(mvlc, vmeBase + regAddr, &readValue, 178, 0);
+
+  if (ec)
+    {
+      fprintf(stderr, "Could not read @ 0x%08x.\n", vmeBase + regAddr);
+      return 1;
+    }
 
   mvlc_disconnect(mvlc);
 
