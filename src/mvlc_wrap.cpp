@@ -3,14 +3,6 @@
 #include <mvlc_factory.h>
 #include <mvlc_wrap.h>
 
-enum {
-    A16 = 0x29,
-    A24 = 0x39,
-    A32 = 0x09,
-    D16 = 0x1,
-    D32 = 0x2
-};
-
 using namespace mesytec::mvlc;
 
 struct mvlcc
@@ -215,30 +207,40 @@ mvlc_readout_eth(mvlc_t a_mvlc, uint8_t **a_buffer, size_t bytes_free)
 	return rc;
 }
 
-uint8_t
-mode_from_str(const char* modStr)
+mvlc_addr_width_t
+mvlc_addr_width_from_arg(uint8_t modStr)
 {
-  uint8_t mode;
-  if (strcmp(modStr, "A16") == 0) {
-    mode = A16;
-  } else if (strcmp(modStr, "A24") == 0) {
-    mode = A24;
-  } else if (strcmp(modStr, "A32") == 0) {
-    mode = A32;
-  } else if (strcmp(modStr, "D16") == 0) {
-    mode = D16;
-  } else if (strcmp(modStr, "D32") == 0) {
-    mode = D32;
+  mvlc_addr_width_t mode = mvlc_A_ERR;
+  if (modStr == 16) {
+    mode = mvlc_A16;
+  } else if (modStr == 24) {
+    mode = mvlc_A24;
+  } else if (modStr == 32) {
+    mode = mvlc_A32;
   } else {
-    fprintf(stderr, "Invalid mode: %s\n", modStr);
-    return 1;
+    fprintf(stderr, "Invalid address width: %d\n", modStr);
+  }
+
+  return mode;
+}
+
+mvlc_data_width_t
+mvlc_data_width_from_arg(uint8_t modStr)
+{
+  mvlc_data_width_t mode = mvlc_D_ERR;
+  if (modStr == 16) {
+    mode = mvlc_D16;
+  } else if (modStr == 32) {
+    mode = mvlc_D32;
+  } else {
+    fprintf(stderr, "Invalid data width: %d\n", modStr);
   }
 
   return mode;
 }
 
 int
-mvlc_single_vme_read(mvlc_t a_mvlc, uint32_t address, uint32_t * value, const char *  amod, const char * dataWidth)
+mvlc_single_vme_read(mvlc_t a_mvlc, uint32_t address, uint32_t * value, uint8_t  amod, uint8_t dataWidth)
 {
   int rc;
 
@@ -247,8 +249,8 @@ mvlc_single_vme_read(mvlc_t a_mvlc, uint32_t address, uint32_t * value, const ch
   //  mesytec::mvlc::VMEDataWidth m_width = static_cast<mesytec::mvlc::VMEDataWidth>(dataWidth);
   // mesytec::mvlc::u32 * m_value = (mesytec::mvlc::u32 *) value;
 
-  uint8_t mode = mode_from_str(amod);
-  uint8_t dWidth = mode_from_str(dataWidth);
+  uint8_t mode = mvlc_addr_width_from_arg(amod);
+  uint8_t dWidth = mvlc_data_width_from_arg(dataWidth);
   mesytec::mvlc::VMEDataWidth m_width = static_cast<mesytec::mvlc::VMEDataWidth>(dWidth);
 
   auto ec = m->mvlc.vmeRead(address, *value, mode, m_width);
@@ -265,14 +267,14 @@ mvlc_single_vme_read(mvlc_t a_mvlc, uint32_t address, uint32_t * value, const ch
 }
 
 int
-mvlc_single_vme_write(mvlc_t a_mvlc, uint32_t address, uint32_t value, const char * amod, const char * dataWidth)
+mvlc_single_vme_write(mvlc_t a_mvlc, uint32_t address, uint32_t value, uint8_t amod, uint8_t dataWidth)
 {
   int rc;
 
   auto m = static_cast<struct mvlcc *>(a_mvlc);
 
-  uint8_t mode = mode_from_str(amod);
-  uint8_t dWidth = mode_from_str(dataWidth);
+  uint8_t mode = mvlc_addr_width_from_arg(amod);
+  uint8_t dWidth = mvlc_data_width_from_arg(dataWidth);
   mesytec::mvlc::VMEDataWidth m_width = static_cast<mesytec::mvlc::VMEDataWidth>(dWidth);
 
   auto ec = m->mvlc.vmeWrite(address, value, mode, m_width);
