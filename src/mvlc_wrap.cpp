@@ -219,6 +219,7 @@ mvlc_addr_width_from_arg(uint8_t modStr)
     mode = mvlc_A32;
   } else {
     fprintf(stderr, "Invalid address width: %d\n", modStr);
+    abort();
   }
 
   return mode;
@@ -234,6 +235,7 @@ mvlc_data_width_from_arg(uint8_t modStr)
     mode = mvlc_D32;
   } else {
     fprintf(stderr, "Invalid data width: %d\n", modStr);
+    abort();
   }
 
   return mode;
