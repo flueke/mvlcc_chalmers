@@ -262,7 +262,7 @@ mvlcc_single_vme_read(mvlcc_t a_mvlc, uint32_t address, uint32_t * value, uint8_
     abort();
   }
 
-  printf("\nvalue = %x\n", *value);
+  // printf("\nvalue = %x\n", *value);
 
   return rc;
 }
