@@ -33,7 +33,16 @@ mvlcc_make_mvlc_from_crate_config(const char *configname)
 }
 
 mvlcc_t
-mvlcc_make_mvlc_eth(const char *host)
+mvlcc_make_mvlc(const char *urlstr)
+{
+	auto m = new mvlcc();
+	m->mvlc = make_mvlc(urlstr);
+	m->ethernet = dynamic_cast<eth::MVLC_ETH_Interface *>(
+	    m->mvlc.getImpl());
+	return m;
+}
+
+mvlcc_t mvlcc_make_mvlc_eth(const char *host)
 {
 	auto m = new mvlcc();
 	m->mvlc = make_mvlc_eth(host);
