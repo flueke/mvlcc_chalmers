@@ -23,7 +23,7 @@ typedef enum {
 } mvlcc_data_width_t;
 
 mvlcc_t mvlcc_make_mvlc_from_crate_config(const char *);
-mvlcc_t mvlcc_make_mvlc_eth(const char *);
+mvlcc_t mvlcc_make_mvlc_eth(const char *host);
 mvlcc_t mvlcc_make_mvlc_usb_from_index(int index);
 mvlcc_t mvlcc_make_mvlc_usb_from_serial(const char *serial);
 void mvlcc_free_mvlc(mvlcc_t a_mvlc);
