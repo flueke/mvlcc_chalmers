@@ -12,7 +12,6 @@ CCNAME:=$(notdir $(CC))
 BUILD_DIR := build_$(CCNAME)_$(shell $(CC) -dumpmachine)_$(shell $(CC) -dumpversion)
 
 CXXFLAGS := -Wall -Wextra -Werror -ggdb -Wfatal-errors -Wshadow
-CXXFLAGS += -march=native
 CXXFLAGS += -fdiagnostics-color=auto
 CXXFLAGS += -fPIC
 CXXFLAGS += -Iinclude
