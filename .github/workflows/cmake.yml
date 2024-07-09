@@ -10,8 +10,8 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: mesytec-mvlc-clone
-      # run: git clone https://github.com/flueke/mesytec-mvlc
-      run: git clone -b no_extractShift https://github.com/inkdot7/mesytec-mvlc
+      run: git clone https://github.com/flueke/mesytec-mvlc
+      #run: git clone -b no_extractShift https://github.com/inkdot7/mesytec-mvlc
     - name: mesytec-mvlc-configure
       run: cd mesytec-mvlc && mkdir build && cd build && cmake -DCMAKE_CXX_FLAGS="-Werror" ..
     - name: mesytec-mvlc-build
