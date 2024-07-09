@@ -2,8 +2,14 @@
 #include <mvlcc_wrap.h>
 #include <stdio.h>
 
-int main(){
-  mvlcc_t mvlc = mvlcc_make_mvlc_eth("mvlc-0056");
+int main(int argc, char *argv[]){
+  mvlcc_t mvlc = NULL;
+
+  if (argc > 1)
+    mvlc = mvlcc_make_mvlc_eth(argv[1]);
+  else
+    mvlc = mvlcc_make_mvlc_eth("192.168.1.103");
+
   int ec;
   int i;
   int tell = 1;
