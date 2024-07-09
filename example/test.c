@@ -3,8 +3,14 @@
 #include <stdio.h>
 
 int main(){
-  mvlcc_t mvlc = mvlcc_make_mvlc_eth("192.168.1.103");
+  mvlcc_t mvlc;
   int ec;
+
+  uint32_t vmeBase;
+  uint16_t regAddr;
+  uint32_t readValue;
+
+  mvlc = mvlcc_make_mvlc_eth("192.168.1.103");
 
   if (ec = mvlcc_connect(mvlc))
     {
@@ -12,9 +18,9 @@ int main(){
       return 1;
     }
   
-  uint32_t vmeBase = 0x21000000u;
-  uint16_t regAddr = 0x6008u;
-  uint32_t readValue = 0u;
+  vmeBase = 0x21000000u;
+  regAddr = 0x6008u;
+  readValue = 0u;
 
   ec = mvlcc_single_vme_read(mvlc, vmeBase + regAddr, &readValue, 32, 16);
 
