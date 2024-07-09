@@ -309,8 +309,20 @@ int mvlcc_register_write(mvlcc_t a_mvlc, uint16_t address, uint32_t value)
 	return ec.value();
 }
 
+static char error_messages[static_cast<size_t>(mesytec::mvlc::MVLCErrorCode::ErrorCodeMax)][256];
+
 const char *mvlcc_strerror(int errnum)
 {
-	auto ec = mesytec::mvlc::make_error_code(static_cast<mesytec::mvlc::MVLCErrorCode>(errnum));
-	return ec.message().c_str();
+	if (errnum < static_cast<int>(mesytec::mvlc::MVLCErrorCode::ErrorCodeMax))
+	{
+		if (!error_messages[errnum][0])
+		{
+			auto ec = mesytec::mvlc::make_error_code(static_cast<mesytec::mvlc::MVLCErrorCode>(errnum));
+			strncpy(error_messages[errnum], ec.message().c_str(), 255);
+		}
+
+		return error_messages[errnum];
+	}
+
+	return "";
 }
