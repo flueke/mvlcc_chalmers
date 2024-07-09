@@ -37,6 +37,24 @@ mvlcc_make_mvlc_eth(const char *hostname)
 {
 	auto m = new mvlcc();
 	m->mvlc = make_mvlc_eth(hostname);
+	m->ethernet = dynamic_cast<eth::MVLC_ETH_Interface *>(
+	    m->mvlc.getImpl());
+	return m;
+}
+
+mvlcc_t mvlcc_make_mvlc_usb_from_index(int index)
+{
+	auto m = new mvlcc();
+	m->mvlc = make_mvlc_usb(index);
+	m->ethernet = nullptr;
+	return m;
+}
+
+mvlcc_t mvlcc_make_mvlc_usb_from_serial(const char *serial)
+{
+	auto m = new mvlcc();
+	m->mvlc = make_mvlc_usb(serial);
+	m->ethernet = nullptr;
 	return m;
 }
 
