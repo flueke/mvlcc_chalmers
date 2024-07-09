@@ -5,10 +5,14 @@
 int main(int argc, char *argv[]){
   mvlcc_t mvlc = NULL;
 
+#if 0
   if (argc > 1)
     mvlc = mvlcc_make_mvlc_eth(argv[1]);
   else
     mvlc = mvlcc_make_mvlc_eth("192.168.1.103");
+#else
+   mvlc = mvlcc_make_mvlc_usb_from_index(0);
+#endif
 
   int ec;
   int i;
