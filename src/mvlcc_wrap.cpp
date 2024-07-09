@@ -40,6 +40,13 @@ mvlcc_make_mvlc_eth(const char *hostname)
 	return m;
 }
 
+void
+mvlcc_free_mvlc(mvlcc_t a_mvlc)
+{
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	delete m;
+}
+
 int
 mvlcc_connect(mvlcc_t a_mvlc)
 {
@@ -258,7 +265,7 @@ mvlcc_single_vme_read(mvlcc_t a_mvlc, uint32_t address, uint32_t * value, uint8_
   // auto ec = m->mvlc.vmeRead(address, *m_value, amod, VMEDataWidth::D16);
   rc = ec.value();
   if (rc != 0) {
-    printf("Failure in vmeRead %d\n", rc);
+    printf("Failure in vmeRead %d (%s)\n", rc, ec.message().c_str());
     abort();
   }
 
@@ -286,4 +293,24 @@ mvlcc_single_vme_write(mvlcc_t a_mvlc, uint32_t address, uint32_t value, uint8_t
   }
   //
   return rc;
+}
+
+int mvlcc_register_read(mvlcc_t a_mvlc, uint16_t address, uint32_t *value)
+{
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	auto ec = m->mvlc.readRegister(address, *value);
+	return ec.value();
+}
+
+int mvlcc_register_write(mvlcc_t a_mvlc, uint16_t address, uint32_t value)
+{
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	auto ec = m->mvlc.writeRegister(address, value);
+	return ec.value();
+}
+
+const char *mvlcc_strerror(int errnum)
+{
+	auto ec = mesytec::mvlc::make_error_code(static_cast<mesytec::mvlc::MVLCErrorCode>(errnum));
+	return ec.message().c_str();
 }

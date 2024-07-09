@@ -6,9 +6,9 @@ CFLAGS +=  $(shell $(MVLCC_CONFIG) --cflags)
 LDFLAGS += $(shell $(MVLCC_CONFIG) --ldflags)
 LIBS +=    $(shell $(MVLCC_CONFIG) --libs)
 
-.PHONY: all
+.PHONY: all test3 # always rebuild test3 just in case the mvlcc lib changed
 
-all: test test2
+all: test test2 test3
 
 test.o: test.c
 	gcc -o $@ -c $< $(CFLAGS)
@@ -21,6 +21,9 @@ test2.o: test2.c
 
 test2: test2.o
 	g++ -o $@ $< $(LDFLAGS) $(LIBS)
+
+test3: test3.c
+	g++ -o $@ $< $(CFLAGS) $(LDFLAGS) $(LIBS)
 
 clean:
 	rm -rf test test.o test2 test2.o
