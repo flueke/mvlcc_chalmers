@@ -2,7 +2,8 @@
 #include <mvlcc_wrap.h>
 #include <stdio.h>
 
-int main(){
+int main(int argc, char *argv[])
+{
   mvlcc_t mvlc;
   int ec;
 
@@ -10,7 +11,13 @@ int main(){
   uint16_t regAddr;
   uint32_t readValue;
 
-  mvlc = mvlcc_make_mvlc_eth("192.168.1.103");
+  if (argc <= 1)
+    {
+      fprintf(stderr, "Device not specified.\n");
+      return 1;
+    }
+
+  mvlc = mvlcc_make_mvlc(argv[1]);
 
   if (ec = mvlcc_connect(mvlc))
     {
