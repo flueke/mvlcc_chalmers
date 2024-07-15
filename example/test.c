@@ -37,6 +37,8 @@ int main(int argc, char *argv[])
       return 1;
     }
 
+  printf ("read: %08x\n", readValue);
+
   regAddr = 0x6004u;
   
   ec = mvlcc_single_vme_write(mvlc, vmeBase + regAddr, 9, 32, 16);
@@ -54,6 +56,8 @@ int main(int argc, char *argv[])
       fprintf(stderr, "Could not read @ 0x%08x.\n", vmeBase + regAddr);
       return 1;
     }
+
+  printf ("read: %08x\n", readValue);
 
   mvlcc_disconnect(mvlc);
 
