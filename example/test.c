@@ -57,5 +57,7 @@ int main(int argc, char *argv[])
 
   mvlcc_disconnect(mvlc);
 
+  mvlcc_free_mvlc(mvlc);
+
   return 0;
 }
