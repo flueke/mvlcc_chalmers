@@ -31,6 +31,8 @@ int main(int argc, char *argv[]){
   regAddr = 0x6008u;
   readValue = 0u;
 
+  printf ("read-write-read @ 0x%08x + 0x%04x\n", vmeBase, regAddr);
+
   for (i = 0; i < 100000; i++)
     {
 
