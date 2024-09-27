@@ -13,13 +13,13 @@ typedef enum {
   mvlcc_A16 = 0x29,
   mvlcc_A24 = 0x39,
   mvlcc_A32 = 0x09,
-  mvlcc_A_ERR = -1,
+  mvlcc_A_ERR = -1
 } mvlcc_addr_width_t;
 
 typedef enum {
   mvlcc_D16 = 0x1,
   mvlcc_D32 = 0x2,
-  mvlcc_D_ERR = -1,
+  mvlcc_D_ERR = -1
 } mvlcc_data_width_t;
 
 mvlcc_t mvlcc_make_mvlc_from_crate_config(const char *);
