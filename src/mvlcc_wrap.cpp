@@ -1,6 +1,4 @@
-#include <mesytec-mvlc.h>
-#include <mvlc.h>
-#include <mvlc_factory.h>
+#include <mesytec-mvlc/mesytec-mvlc.h>
 
 #include <mvlcc_wrap.h>
 

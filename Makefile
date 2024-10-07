@@ -16,13 +16,7 @@ CXXFLAGS += -fdiagnostics-color=auto
 CXXFLAGS += -fPIC
 CXXFLAGS += -Iinclude
 CXXFLAGS += -std=c++17
-CXXFLAGS += -I$(MVLC_DIR)/src
-CXXFLAGS += -I$(MVLC_DIR)/external/fmt/include
-CXXFLAGS += -I$(MVLC_DIR)/src/mesytec-mvlc
-CXXFLAGS += -I$(MVLC_DIR)/build/src
-CXXFLAGS += -I$(MVLC_DIR)/build/src/mesytec-mvlc
-CXXFLAGS += -I$(MVLC_DIR)/external/spdlog/include
-CXXFLAGS += -I$(MVLC_DIR)/external/argh
+CXXFLAGS += -I$(MVLC_DIR)/install/include -isystem $(MVLC_DIR)/install/include/mesytec-mvlc
 
 ifeq (,$(MODE))
   CXXFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE
