@@ -83,10 +83,6 @@ mvlcc_connect(mvlcc_t a_mvlc)
 
 	auto ec = m->mvlc.connect();
 	rc = ec.value();
-	if (rc != 0) {
-		printf("'%s'\n", ec.message().c_str());
-		abort();
-	}
 	return rc;
 }
 
@@ -349,5 +345,17 @@ const char *mvlcc_strerror(int errnum)
 		return error_messages[errnum];
 	}
 
-	return "";
+	return "<unknown error>";
+}
+
+bool mvlcc_is_mvlc_valid(mvlcc_t a_mvlc)
+{
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	return m->mvlc.isValid();
+}
+
+bool mvlcc_is_ethernet(mvlcc_t a_mvlc)
+{
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	return m->ethernet != nullptr;
 }
