@@ -1,7 +1,8 @@
 #include <mesytec-mvlc.h>
 #include <mvlc.h>
 #include <mvlc_factory.h>
-#include <mvlc_wrap.h>
+
+#include <mvlcc_wrap.h>
 
 using namespace mesytec::mvlc;
 
@@ -16,8 +17,8 @@ int readout_eth(eth::MVLC_ETH_Interface *a_eth, uint8_t *a_buffer,
     size_t *bytes_transferred);
 int send_empty_request(MVLC *a_mvlc);
 
-mvlc_t
-mvlc_make_mvlc_from_crate_config(const char *configname)
+mvlcc_t
+mvlcc_make_mvlc_from_crate_config(const char *configname)
 {
 	auto m = new mvlcc();
 	std::ifstream config(configname);
@@ -31,16 +32,50 @@ mvlc_make_mvlc_from_crate_config(const char *configname)
 	return m;
 }
 
-mvlc_t
-mvlc_make_mvlc_eth(const char *hostname)
+mvlcc_t
+mvlcc_make_mvlc(const char *urlstr)
 {
 	auto m = new mvlcc();
-	m->mvlc = make_mvlc_eth(hostname);
+	m->mvlc = make_mvlc(urlstr);
+	m->ethernet = dynamic_cast<eth::MVLC_ETH_Interface *>(
+	    m->mvlc.getImpl());
 	return m;
 }
 
+mvlcc_t mvlcc_make_mvlc_eth(const char *host)
+{
+	auto m = new mvlcc();
+	m->mvlc = make_mvlc_eth(host);
+	m->ethernet = dynamic_cast<eth::MVLC_ETH_Interface *>(
+	    m->mvlc.getImpl());
+	return m;
+}
+
+mvlcc_t mvlcc_make_mvlc_usb_from_index(int index)
+{
+	auto m = new mvlcc();
+	m->mvlc = make_mvlc_usb(index);
+	m->ethernet = nullptr;
+	return m;
+}
+
+mvlcc_t mvlcc_make_mvlc_usb_from_serial(const char *serial)
+{
+	auto m = new mvlcc();
+	m->mvlc = make_mvlc_usb(serial);
+	m->ethernet = nullptr;
+	return m;
+}
+
+void
+mvlcc_free_mvlc(mvlcc_t a_mvlc)
+{
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	delete m;
+}
+
 int
-mvlc_connect(mvlc_t a_mvlc)
+mvlcc_connect(mvlcc_t a_mvlc)
 {
 	int rc;
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
@@ -58,7 +93,7 @@ mvlc_connect(mvlc_t a_mvlc)
 }
 
 int
-mvlc_stop(mvlc_t a_mvlc)
+mvlcc_stop(mvlcc_t a_mvlc)
 {
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 
@@ -73,14 +108,14 @@ mvlc_stop(mvlc_t a_mvlc)
 }
 
 void
-mvlc_disconnect(mvlc_t a_mvlc)
+mvlcc_disconnect(mvlcc_t a_mvlc)
 {
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 	m->mvlc.disconnect();
 }
 
 int
-mvlc_init_readout(mvlc_t a_mvlc)
+mvlcc_init_readout(mvlcc_t a_mvlc)
 {
 	int rc;
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
@@ -89,7 +124,7 @@ mvlc_init_readout(mvlc_t a_mvlc)
 
 	auto result = init_readout(m->mvlc, m->config, {});
 
-	printf("mvlc_init_readout\n");
+	printf("mvlcc_init_readout\n");
 	// std::cout << "init_readout result = " << result.init << std::endl;
 
 	rc = result.ec.value();
@@ -183,7 +218,7 @@ readout_eth(eth::MVLC_ETH_Interface *a_eth, uint8_t *a_buffer,
 }
 
 int
-mvlc_readout_eth(mvlc_t a_mvlc, uint8_t **a_buffer, size_t bytes_free)
+mvlcc_readout_eth(mvlcc_t a_mvlc, uint8_t **a_buffer, size_t bytes_free)
 {
 	int rc;
 	size_t bytes_transferred;
@@ -192,7 +227,7 @@ mvlc_readout_eth(mvlc_t a_mvlc, uint8_t **a_buffer, size_t bytes_free)
 
 	buffer = *a_buffer;
 
-	printf("mvlc_readout_eth: a_buffer@%p, bytes_free = %lu\n", (void *)*a_buffer, bytes_free);
+	printf("mvlcc_readout_eth: a_buffer@%p, bytes_free = %lu\n", (void *)*a_buffer, bytes_free);
 
 	rc = readout_eth(m->ethernet, buffer, bytes_free, &bytes_transferred);
 	if (rc != 0) {
@@ -207,48 +242,114 @@ mvlc_readout_eth(mvlc_t a_mvlc, uint8_t **a_buffer, size_t bytes_free)
 	return rc;
 }
 
+mvlcc_addr_width_t
+mvlcc_addr_width_from_arg(uint8_t modStr)
+{
+  mvlcc_addr_width_t mode = mvlcc_A_ERR;
+  if (modStr == 16) {
+    mode = mvlcc_A16;
+  } else if (modStr == 24) {
+    mode = mvlcc_A24;
+  } else if (modStr == 32) {
+    mode = mvlcc_A32;
+  } else {
+    fprintf(stderr, "Invalid address width: %d\n", modStr);
+  }
+
+  return mode;
+}
+
+mvlcc_data_width_t
+mvlcc_data_width_from_arg(uint8_t modStr)
+{
+  mvlcc_data_width_t mode = mvlcc_D_ERR;
+  if (modStr == 16) {
+    mode = mvlcc_D16;
+  } else if (modStr == 32) {
+    mode = mvlcc_D32;
+  } else {
+    fprintf(stderr, "Invalid data width: %d\n", modStr);
+  }
+
+  return mode;
+}
+
 int
-mvlc_single_vme_read(mvlc_t a_mvlc, uint32_t address, uint32_t * value, uint8_t  amod, uint8_t dataWidth)
+mvlcc_single_vme_read(mvlcc_t a_mvlc, uint32_t address, uint32_t * value, uint8_t  amod, uint8_t dataWidth)
 {
   int rc;
 
   auto m = static_cast<struct mvlcc *>(a_mvlc);
 
-  mesytec::mvlc::VMEDataWidth m_width = static_cast<mesytec::mvlc::VMEDataWidth>(dataWidth);
+  //  mesytec::mvlc::VMEDataWidth m_width = static_cast<mesytec::mvlc::VMEDataWidth>(dataWidth);
   // mesytec::mvlc::u32 * m_value = (mesytec::mvlc::u32 *) value;
 
-  auto ec = m->mvlc.vmeRead(address, *value, vme_amods::A32, VMEDataWidth::D16);
+  uint8_t mode = mvlcc_addr_width_from_arg(amod);
+  uint8_t dWidth = mvlcc_data_width_from_arg(dataWidth);
+  mesytec::mvlc::VMEDataWidth m_width = static_cast<mesytec::mvlc::VMEDataWidth>(dWidth);
+
+  auto ec = m->mvlc.vmeRead(address, *value, mode, m_width);
   // auto ec = m->mvlc.vmeRead(address, *m_value, amod, VMEDataWidth::D16);
   rc = ec.value();
   if (rc != 0) {
-    printf("Failure in vmeRead %d\n", rc);
+    printf("Failure in vmeRead %d (%s)\n", rc, ec.message().c_str());
     abort();
   }
 
-  printf("\nvalue = %x\n", *value);
-
-  (void) amod;
-  (void) m_width;
+  // printf("\nvalue = %x\n", *value);
 
   return rc;
 }
 
 int
-mvlc_single_vme_write(mvlc_t a_mvlc, uint32_t address, uint32_t value, uint8_t amod, uint8_t dataWidth)
+mvlcc_single_vme_write(mvlcc_t a_mvlc, uint32_t address, uint32_t value, uint8_t amod, uint8_t dataWidth)
 {
   int rc;
 
   auto m = static_cast<struct mvlcc *>(a_mvlc);
 
-  auto ec = m->mvlc.vmeWrite(address, value, vme_amods::A32, VMEDataWidth::D16);
+  uint8_t mode = mvlcc_addr_width_from_arg(amod);
+  uint8_t dWidth = mvlcc_data_width_from_arg(dataWidth);
+  mesytec::mvlc::VMEDataWidth m_width = static_cast<mesytec::mvlc::VMEDataWidth>(dWidth);
+
+  auto ec = m->mvlc.vmeWrite(address, value, mode, m_width);
   rc = ec.value();
   if (rc != 0) {
     printf("Failure in vmeWrite %d\n", rc);
     abort();
   }
-
-  (void) amod;
-  (void) dataWidth;
-
+  //
   return rc;
+}
+
+int mvlcc_register_read(mvlcc_t a_mvlc, uint16_t address, uint32_t *value)
+{
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	auto ec = m->mvlc.readRegister(address, *value);
+	return ec.value();
+}
+
+int mvlcc_register_write(mvlcc_t a_mvlc, uint16_t address, uint32_t value)
+{
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	auto ec = m->mvlc.writeRegister(address, value);
+	return ec.value();
+}
+
+static char error_messages[static_cast<size_t>(mesytec::mvlc::MVLCErrorCode::ErrorCodeMax)][256];
+
+const char *mvlcc_strerror(int errnum)
+{
+	if (errnum < static_cast<int>(mesytec::mvlc::MVLCErrorCode::ErrorCodeMax))
+	{
+		if (!error_messages[errnum][0])
+		{
+			auto ec = mesytec::mvlc::make_error_code(static_cast<mesytec::mvlc::MVLCErrorCode>(errnum));
+			strncpy(error_messages[errnum], ec.message().c_str(), 255);
+		}
+
+		return error_messages[errnum];
+	}
+
+	return "";
 }
