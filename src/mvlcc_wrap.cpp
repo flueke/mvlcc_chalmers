@@ -348,13 +348,13 @@ const char *mvlcc_strerror(int errnum)
 	return "<unknown error>";
 }
 
-bool mvlcc_is_mvlc_valid(mvlcc_t a_mvlc)
+int mvlcc_is_mvlc_valid(mvlcc_t a_mvlc)
 {
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 	return m->mvlc.isValid();
 }
 
-bool mvlcc_is_ethernet(mvlcc_t a_mvlc)
+int mvlcc_is_ethernet(mvlcc_t a_mvlc)
 {
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 	return m->ethernet != nullptr;

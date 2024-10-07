@@ -38,8 +38,8 @@ int mvlcc_single_vme_write(mvlcc_t a_mvlc, uint32_t address, uint32_t value, uin
 int mvlcc_register_read(mvlcc_t a_mvlc, uint16_t address, uint32_t *value);
 int mvlcc_register_write(mvlcc_t a_mvlc, uint16_t address, uint32_t value);
 const char *mvlcc_strerror(int errnum);
-bool mvlcc_is_mvlc_valid(mvlcc_t a_mvlc);
-bool mvlcc_is_ethernet(mvlcc_t a_mvlc);
+int mvlcc_is_mvlc_valid(mvlcc_t a_mvlc);
+int mvlcc_is_ethernet(mvlcc_t a_mvlc);
 
 
 #ifdef __cplusplus
