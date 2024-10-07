@@ -43,12 +43,12 @@ else
     exit 1
 fi
 
-CFLAGS="$CFLAGS -I ${MVLCC_DIR}/include/"
+CFLAGS="$CFLAGS -I${MVLCC_DIR}/include/"
 LDFLAGS="$LDFLAGS"
 # The platform support libs ($LIBS from config) must be last
 LIBSDIR="-L${MVLCC_DIR}/${LIB_DIR} -L${MVLC_DIR}/build/"
-LIBS="$LIBS -lmvlcc -lmesytec-mvlc \
-    -Wl,-rpath=${MVLC_DIR}/build/"
+LIBS="$LIBS -lmvlcc -lmesytec-mvlc -lstdc++ \
+    -Wl,-rpath=${MVLC_DIR}/install/lib"
 
 while [ $# -gt 0 ]; do
     case $1 in
