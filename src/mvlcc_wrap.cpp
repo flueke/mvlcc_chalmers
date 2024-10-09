@@ -360,35 +360,30 @@ int mvlcc_is_ethernet(mvlcc_t a_mvlc)
 	return m->ethernet != nullptr;
 }
 
-int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, size_t bufferInSize,
-  size_t *bufferOutSize, struct MvlccBlockReadParams params)
+int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, size_t sizeIn,
+  size_t *sizeOut, struct MvlccBlockReadParams params)
 {
 	assert(buffer);
-	assert(bufferOutSize);
+	assert(sizeOut);
 
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 	auto &mvlc = m->mvlc;
 
-	const u16 maxTransfers = bufferInSize / (vme_amods::is_mblt_mode(params.amod) ? 2 : 1);
+	const u16 maxTransfers = sizeIn / (vme_amods::is_mblt_mode(params.amod) ? 2 : 1);
 
-	std::vector<u32> localData;
-	localData.reserve(bufferInSize/sizeof(u32));
+	util::span<uint32_t> dest(buffer, sizeIn);
 
 	std::error_code ec;
 
-	if (!params.swap)
-		ec = mvlc.vmeBlockRead(address, params.amod, maxTransfers, localData, params.fifo);
-	else
-		ec = mvlc.vmeBlockReadSwapped(address, params.amod, maxTransfers, localData, params.fifo);
+	assert(!params.swap); // TODO: implement swap
 
-	if (ec)
-		return ec.value();
+	//if (!params.swap)
+		ec = mvlc.vmeBlockRead(address, params.amod, maxTransfers, dest, params.fifo);
 
-	const auto end = std::min(localData.begin() + bufferInSize, localData.end());
-	std::copy(localData.begin(), end, buffer);
-	*bufferOutSize = end - localData.begin();
+	log_buffer(default_logger(), spdlog::level::info, dest, "vmeBlockRead()");
 
-	return 0;
+	*sizeOut = dest.size();
+	return ec.value();
 }
 
 void mvlcc_set_global_log_level(const char *levelName)
