@@ -359,3 +359,34 @@ int mvlcc_is_ethernet(mvlcc_t a_mvlc)
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 	return m->ethernet != nullptr;
 }
+
+int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, size_t bufferInSize,
+  size_t *bufferOutSize, struct MvlccBlockReadParams params)
+{
+	assert(buffer);
+	assert(bufferOutSize);
+
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	auto &mvlc = m->mvlc;
+
+	const u16 maxTransfers = bufferInSize / (vme_amods::is_mblt_mode(params.amod) ? 2 : 1);
+
+	std::vector<u32> localData;
+	localData.reserve(bufferInSize/sizeof(u32));
+
+	std::error_code ec;
+
+	if (!params.swap)
+		ec = mvlc.vmeBlockRead(address, params.amod, maxTransfers, localData, params.fifo);
+	else
+		ec = mvlc.vmeBlockReadSwapped(address, params.amod, maxTransfers, localData, params.fifo);
+
+	if (ec)
+		return ec.value();
+
+	const auto end = std::min(localData.begin() + bufferInSize, localData.end());
+	std::copy(localData.begin(), end, buffer);
+	*bufferOutSize = end - localData.begin();
+
+	return 0;
+}

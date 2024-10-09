@@ -33,7 +33,7 @@ int mvlcc_stop(mvlcc_t);
 void mvlcc_disconnect(mvlcc_t);
 int mvlcc_init_readout(mvlcc_t);
 int mvlcc_readout_eth(mvlcc_t, uint8_t **, size_t);
-int mvlcc_single_vme_read(mvlcc_t a_mvlc, uint32_t address, uint32_t * value, uint8_t amod, uint8_t dataWidt);
+int mvlcc_single_vme_read(mvlcc_t a_mvlc, uint32_t address, uint32_t * value, uint8_t amod, uint8_t dataWidth);
 int mvlcc_single_vme_write(mvlcc_t a_mvlc, uint32_t address, uint32_t value, uint8_t amod, uint8_t dataWidth);
 int mvlcc_register_read(mvlcc_t a_mvlc, uint16_t address, uint32_t *value);
 int mvlcc_register_write(mvlcc_t a_mvlc, uint16_t address, uint32_t value);
@@ -41,6 +41,16 @@ const char *mvlcc_strerror(int errnum);
 int mvlcc_is_mvlc_valid(mvlcc_t a_mvlc);
 int mvlcc_is_ethernet(mvlcc_t a_mvlc);
 
+struct MvlccBlockReadParams
+{
+    uint8_t amod; /* amod, must be a valid VME block amod */
+    int fifo: 1;  /* if true the read address is not incremented */
+    int swap: 1;  /* if true swaps the two 32-bit words for 64-bit MBLT reads */
+};
+
+/* bufferInSize and bufferOutSize are in units of 32-bit words */
+int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, size_t bufferInSize,
+  size_t *bufferOutSize, struct MvlccBlockReadParams params);
 
 #ifdef __cplusplus
 }
