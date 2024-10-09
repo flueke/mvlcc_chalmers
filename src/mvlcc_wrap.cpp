@@ -92,7 +92,7 @@ mvlcc_stop(mvlcc_t a_mvlc)
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 
 	/* perhaps try this a couple of times */
-	auto ec = disable_all_triggers_and_daq_mode(m->mvlc);
+	auto ec = disable_daq_mode_and_triggers(m->mvlc);
 	if (ec) {
 		printf("'%s'\n", ec.message().c_str());
 		abort();
