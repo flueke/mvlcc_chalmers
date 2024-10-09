@@ -44,8 +44,8 @@ int mvlcc_is_ethernet(mvlcc_t a_mvlc);
 struct MvlccBlockReadParams
 {
     uint8_t amod; /* amod, must be a valid VME block amod */
-    int fifo: 1;  /* if true the read address is not incremented */
-    int swap: 1;  /* if true swaps the two 32-bit words for 64-bit MBLT reads */
+    int fifo;  /* if true the read address is not incremented */
+    int swap;  /* if true swaps the two 32-bit words for 64-bit MBLT reads */
 };
 
 /* sizeIn and sizeOut in units of 32-bit words */

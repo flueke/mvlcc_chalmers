@@ -375,8 +375,6 @@ int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, siz
 
 	std::error_code ec;
 
-	assert(!params.swap); // TODO: implement swap
-
 	//if (!params.swap)
 		ec = mvlc.vmeBlockRead(address, params.amod, maxTransfers, dest, params.fifo);
 
