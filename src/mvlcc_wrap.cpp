@@ -390,3 +390,9 @@ int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, siz
 
 	return 0;
 }
+
+void mvlcc_set_global_log_level(const char *levelName)
+{
+	spdlog::warn("{} {}", __PRETTY_FUNCTION__, levelName);
+	set_global_log_level(spdlog::level::from_str(levelName));
+}

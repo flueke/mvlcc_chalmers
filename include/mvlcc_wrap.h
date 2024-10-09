@@ -52,6 +52,9 @@ struct MvlccBlockReadParams
 int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, size_t bufferInSize,
   size_t *bufferOutSize, struct MvlccBlockReadParams params);
 
+/* spdlog level names: error, warn, info, debug, trace */
+void mvlcc_set_global_log_level(const char *levelName);
+
 #ifdef __cplusplus
 }
 #endif
