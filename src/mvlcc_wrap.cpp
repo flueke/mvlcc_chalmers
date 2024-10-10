@@ -500,10 +500,10 @@ int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, siz
 	auto &mvlc = m->mvlc;
 
 	const u16 maxTransfers = sizeIn / (vme_amods::is_mblt_mode(params.amod) ? 2 : 1);
+	//const u16 maxTransfers = std::numeric_limits<u16>::max();
 	std::error_code ec;
 
 	m->bltWorkBuffer.clear();
-	m->bltWorkBuffer.reserve(maxTransfers/sizeof(u32));
 
 	if (vme_amods::is_mblt_mode(params.amod) && params.swap)
 	{
@@ -534,6 +534,8 @@ int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, siz
 
 	log_buffer(default_logger(), spdlog::level::info, std::basic_string_view<u32>(buffer, *sizeOut),
 		fmt::format("vmeBlockRead() (result={}, {}) post processed data", ec.value(), ec.message()), 10);
+
+	//buffer[0] = 0xdeadbeef;
 
 	return ec.value();
 }
