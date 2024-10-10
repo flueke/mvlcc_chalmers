@@ -1,6 +1,6 @@
-#include <mesytec-mvlc/mesytec-mvlc.h>
-
 #include <mvlcc_wrap.h>
+
+#include <mesytec-mvlc/mesytec-mvlc.h>
 
 using namespace mesytec::mvlc;
 
