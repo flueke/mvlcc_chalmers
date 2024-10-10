@@ -375,8 +375,10 @@ int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, siz
 
 	std::error_code ec;
 
-	//if (!params.swap)
+	if (!params.swap)
 		ec = mvlc.vmeBlockRead(address, params.amod, maxTransfers, dest, params.fifo);
+	else
+		ec = mvlc.vmeBlockReadSwapped(address, params.amod, maxTransfers, dest, params.fifo);
 
 	log_buffer(default_logger(), spdlog::level::info, dest, "vmeBlockRead()");
 
