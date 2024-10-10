@@ -9,11 +9,21 @@ struct mvlcc
 	mesytec::mvlc::CrateConfig config;
 	mesytec::mvlc::MVLC mvlc;
 	mesytec::mvlc::eth::MVLC_ETH_Interface *ethernet;
+	std::vector<u32> bltWorkBuffer;
 };
 
 int readout_eth(eth::MVLC_ETH_Interface *a_eth, uint8_t *a_buffer,
     size_t *bytes_transferred);
 int send_empty_request(MVLC *a_mvlc);
+
+static mvlcc_t make_mvlcc(const MVLC &mvlc, const CrateConfig &crateConfig = {})
+{
+	auto ret = std::make_unique<mvlcc>();
+	ret->mvlc = mvlc;
+	ret->ethernet = dynamic_cast<eth::MVLC_ETH_Interface *>(ret->mvlc.getImpl());
+	ret->config = crateConfig;
+	return ret.release();
+}
 
 mvlcc_t
 mvlcc_make_mvlc_from_crate_config(const char *configname)
@@ -33,11 +43,7 @@ mvlcc_make_mvlc_from_crate_config(const char *configname)
 mvlcc_t
 mvlcc_make_mvlc(const char *urlstr)
 {
-	auto m = new mvlcc();
-	m->mvlc = make_mvlc(urlstr);
-	m->ethernet = dynamic_cast<eth::MVLC_ETH_Interface *>(
-	    m->mvlc.getImpl());
-	return m;
+	return make_mvlcc(make_mvlc(urlstr));
 }
 
 mvlcc_t mvlcc_make_mvlc_eth(const char *host)
@@ -69,6 +75,7 @@ void
 mvlcc_free_mvlc(mvlcc_t a_mvlc)
 {
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	m->ethernet = nullptr;
 	delete m;
 }
 
@@ -360,6 +367,129 @@ int mvlcc_is_ethernet(mvlcc_t a_mvlc)
 	return m->ethernet != nullptr;
 }
 
+namespace
+{
+// Direct VME block read execution support code:
+//
+// The vmeBlockRead(Swapped)() methods where never intended to be used for
+// readouts. They return the raw response, including MVLC frame headers
+// (basically the USB framing format). The code in mvlcc_vme_block_read() reads
+// into a work buffer, then post-processes the result to get rid of the headers.
+
+struct end_of_frame: public std::exception {};
+
+// Helper structure keeping track of the number of words left in a MVLC
+// style data frame.
+struct FrameParseState
+{
+	explicit FrameParseState(u32 frameHeader = 0)
+		: header(frameHeader)
+		, wordsLeft(extract_frame_info(frameHeader).len)
+	{}
+
+	FrameParseState(const FrameParseState &) = default;
+	FrameParseState &operator=(const FrameParseState &o) = default;
+
+	inline explicit operator bool() const { return wordsLeft; }
+	inline FrameInfo info() const { return extract_frame_info(header); }
+
+	inline void consumeWord()
+	{
+		if (wordsLeft == 0)
+			throw end_of_frame();
+		--wordsLeft;
+	}
+
+	inline void consumeWords(size_t count)
+	{
+		if (wordsLeft < count)
+			throw end_of_frame();
+
+		wordsLeft -= count;
+	}
+
+	u32 header;
+	u16 wordsLeft;
+};
+
+u32 consume_one(std::basic_string_view<u32> &input)
+{
+	assert(!input.empty());
+
+	auto result = input[0];
+	input.remove_prefix(1);
+	return result;
+}
+
+struct BltPostProcessState
+{
+	FrameParseState curStackFrame;
+	FrameParseState curBlockFrame;
+};
+
+ssize_t post_process_blt_data(const std::vector<u32> &src, util::span<uint32_t> dest)
+{
+	// Input structure from directly executed block reads:
+	//  0xF3  outer stack frame header
+	//  0x??  reference word that was added by the MVLC library code. Same as a //  "marker" command in a readout script.
+	//  0xF5  first block read frame header.
+	if (src.size() < 3)
+		return -1;
+
+	std::basic_string_view<u32> input(src.data(), src.size());
+	BltPostProcessState state;
+
+	state.curStackFrame = FrameParseState(consume_one(input));
+	consume_one(input); // reference word
+	state.curBlockFrame = FrameParseState(consume_one(input));
+
+	const auto outEnd = std::end(dest);
+	auto outIter = std::begin(dest);
+
+	try
+	{
+
+		while (!input.empty())
+		{
+			if (extract_frame_info(state.curStackFrame.header).type != frame_headers::StackFrame)
+			{
+				// The outer frame is not a stack frame.
+				return -1;
+			}
+
+			if (extract_frame_info(state.curBlockFrame.header).type != frame_headers::BlockRead)
+			{
+				// The inner frame is not a block frame.
+				return -1;
+			}
+
+			while (!input.empty() && state.curBlockFrame && outIter < outEnd)
+			{
+				*outIter++ = consume_one(input);
+				state.curBlockFrame.consumeWord();
+			}
+
+			// The inner block frame does not have the continue flag set, so we're done.
+			if (!(extract_frame_flags(state.curBlockFrame.header) & frame_flags::Continue))
+				break;
+
+			if (input.size() < 2) // need at least two words: outer 0xF9 StackContinuation and inner 0xF5 BlockRead
+				return -1;
+
+			state.curStackFrame = FrameParseState(consume_one(input));
+			state.curBlockFrame	= FrameParseState(consume_one(input));
+		}
+	}
+	catch (const end_of_frame &e)
+	{
+		return -1; // should not happen, data format corrupted
+	}
+
+	return std::distance(std::begin(dest), outIter);
+}
+
+}
+
 int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, size_t sizeIn,
   size_t *sizeOut, struct MvlccBlockReadParams params)
 {
@@ -370,23 +500,41 @@ int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, siz
 	auto &mvlc = m->mvlc;
 
 	const u16 maxTransfers = sizeIn / (vme_amods::is_mblt_mode(params.amod) ? 2 : 1);
-
-	util::span<uint32_t> dest(buffer, sizeIn);
-
 	std::error_code ec;
+
+	m->bltWorkBuffer.clear();
+	m->bltWorkBuffer.reserve(maxTransfers/sizeof(u32));
 
 	if (vme_amods::is_mblt_mode(params.amod) && params.swap)
 	{
-		ec = mvlc.vmeBlockReadSwapped(address, params.amod, maxTransfers, dest, params.fifo);
+		ec = mvlc.vmeBlockReadSwapped(address, params.amod, maxTransfers, m->bltWorkBuffer, params.fifo);
 	}
 	else
 	{
-		ec = mvlc.vmeBlockRead(address, params.amod, maxTransfers, dest, params.fifo);
+		ec = mvlc.vmeBlockRead(address, params.amod, maxTransfers, m->bltWorkBuffer, params.fifo);
 	}
 
-	log_buffer(default_logger(), spdlog::level::debug, dest, "vmeBlockRead()");
+	log_buffer(default_logger(), spdlog::level::info, m->bltWorkBuffer,
+		fmt::format("vmeBlockRead() (result={}, {}) raw data", ec.value(), ec.message()), 10);
 
-	*sizeOut = dest.size();
+	*sizeOut = 0;
+
+	if (!ec)
+	{
+		util::span<uint32_t> dest(buffer, sizeIn);
+		ssize_t r = post_process_blt_data(m->bltWorkBuffer, dest);
+		if (r >= 0)
+			*sizeOut = r;
+		else
+		{
+			*sizeOut = 0;
+			return -r;
+		}
+	}
+
+	log_buffer(default_logger(), spdlog::level::info, std::basic_string_view<u32>(buffer, *sizeOut),
+		fmt::format("vmeBlockRead() (result={}, {}) post processed data", ec.value(), ec.message()), 10);
+
 	return ec.value();
 }
 
