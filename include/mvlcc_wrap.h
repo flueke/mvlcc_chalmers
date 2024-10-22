@@ -48,7 +48,14 @@ struct MvlccBlockReadParams
     int swap;  /* if true swaps the two 32-bit words for 64-bit MBLT reads */
 };
 
-/* sizeIn and sizeOut in units of 32-bit words */
+/* Directly executed block read. Uses MVLCs command pipe which has a smaller
+ * buffer than the readout pipe. Not recommended to be used for real DAQs!
+ * Writes the raw blockread contents, stripped of any MVLC framing, into buffer.
+ *
+ * Returns 0 on success, non-zero otherwise.
+ * The number of words copied into the output buffer is returned in sizeOut.
+ * sizeIn and sizeOut in units of 32-bit words.
+ */
 int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, size_t sizeIn,
   size_t *sizeOut, struct MvlccBlockReadParams params);
 

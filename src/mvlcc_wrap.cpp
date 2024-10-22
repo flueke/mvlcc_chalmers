@@ -427,12 +427,14 @@ struct BltPostProcessState
 	FrameParseState curBlockFrame;
 };
 
-ssize_t post_process_blt_data(const std::vector<u32> &src, util::span<uint32_t> dest)
+int post_process_blt_data(const std::vector<u32> &src, util::span<uint32_t> dest, size_t &wordsCopied)
 {
 	// Input structure from directly executed block reads:
 	//  0xF3  outer stack frame header
-	//  0x??  reference word that was added by the MVLC library code. Same as a //  "marker" command in a readout script.
-	//  0xF5  first block read frame header.
+	//    0x??  reference word that was added by the MVLC library code. Same as a //  "marker" command in a readout script.
+	//    0xF5  first block read frame header.
+	//   [0xF9  optional stack continuation frames]
+
 	if (src.size() < 3)
 		return -1;
 
@@ -445,21 +447,24 @@ ssize_t post_process_blt_data(const std::vector<u32> &src, util::span<uint32_t> 
 
 	const auto outEnd = std::end(dest);
 	auto outIter = std::begin(dest);
+	wordsCopied = 0u;
 
 	try
 	{
 
 		while (!input.empty())
 		{
-			if (extract_frame_info(state.curStackFrame.header).type != frame_headers::StackFrame)
+			if (auto stackFrameType = get_frame_type(state.curStackFrame.header);
+				stackFrameType != frame_headers::StackFrame && stackFrameType != frame_headers::StackContinuation)
 			{
-				// The outer frame is not a stack frame.
+				spdlog::error("post_process_blt_data(): expected StackFrame or StackContinuation frame header, got 0x{:08X}", state.curStackFrame.header);
 				return -1;
 			}
 
-			if (extract_frame_info(state.curBlockFrame.header).type != frame_headers::BlockRead)
+			if (auto blockFrameType = get_frame_type(state.curBlockFrame.header);
+				blockFrameType != frame_headers::BlockRead)
 			{
-				// The inner frame is not a block frame.
+				spdlog::error("post_process_blt_data(): expected BlockRead frame header, got 0x{:08X}", state.curBlockFrame.header);
 				return -1;
 			}
 
@@ -467,6 +472,7 @@ ssize_t post_process_blt_data(const std::vector<u32> &src, util::span<uint32_t> 
 			{
 				*outIter++ = consume_one(input);
 				state.curBlockFrame.consumeWord();
+				++wordsCopied;
 			}
 
 			// The inner block frame does not have the continue flag set, so we're done.
@@ -474,7 +480,10 @@ ssize_t post_process_blt_data(const std::vector<u32> &src, util::span<uint32_t> 
 				break;
 
 			if (input.size() < 2) // need at least two words: outer 0xF9 StackContinuation and inner 0xF5 BlockRead
+			{
+				spdlog::error("post_process_blt_data(): input.size()={} (less than 2) -> result=-1", input.size());
 				return -1;
+			}
 
 			state.curStackFrame = FrameParseState(consume_one(input));
 			state.curBlockFrame	= FrameParseState(consume_one(input));
@@ -485,7 +494,9 @@ ssize_t post_process_blt_data(const std::vector<u32> &src, util::span<uint32_t> 
 		return -1; // should not happen, data format corrupted
 	}
 
-	return std::distance(std::begin(dest), outIter);
+	spdlog::trace("post_process_blt_data(): wordsCopied={}", wordsCopied);
+
+	return 0;
 }
 
 }
@@ -500,7 +511,6 @@ int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, siz
 	auto &mvlc = m->mvlc;
 
 	const u16 maxTransfers = sizeIn / (vme_amods::is_mblt_mode(params.amod) ? 2 : 1);
-	//const u16 maxTransfers = std::numeric_limits<u16>::max();
 	std::error_code ec;
 
 	m->bltWorkBuffer.clear();
@@ -514,7 +524,7 @@ int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, siz
 		ec = mvlc.vmeBlockRead(address, params.amod, maxTransfers, m->bltWorkBuffer, params.fifo);
 	}
 
-	log_buffer(default_logger(), spdlog::level::info, m->bltWorkBuffer,
+	log_buffer(default_logger(), spdlog::level::debug, m->bltWorkBuffer,
 		fmt::format("vmeBlockRead() (result={}, {}) raw data", ec.value(), ec.message()), 10);
 
 	*sizeOut = 0;
@@ -522,20 +532,15 @@ int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, siz
 	if (!ec)
 	{
 		util::span<uint32_t> dest(buffer, sizeIn);
-		ssize_t r = post_process_blt_data(m->bltWorkBuffer, dest);
-		if (r >= 0)
-			*sizeOut = r;
-		else
+
+		if (post_process_blt_data(m->bltWorkBuffer, dest, *sizeOut) != 0)
 		{
-			*sizeOut = 0;
-			return -r;
+			spdlog::warn("post_process_blt_data() failed, wordsCopied={}", *sizeOut);
 		}
 	}
 
-	log_buffer(default_logger(), spdlog::level::info, std::basic_string_view<u32>(buffer, *sizeOut),
+	log_buffer(default_logger(), spdlog::level::debug, std::basic_string_view<u32>(buffer, *sizeOut),
 		fmt::format("vmeBlockRead() (result={}, {}) post processed data", ec.value(), ec.message()), 10);
-
-	//buffer[0] = 0xdeadbeef;
 
 	return ec.value();
 }
