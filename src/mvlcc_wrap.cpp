@@ -549,3 +549,19 @@ void mvlcc_set_global_log_level(const char *levelName)
 {
 	set_global_log_level(spdlog::level::from_str(levelName));
 }
+
+void mvlcc_print_mvlc_cmd_counters(FILE *out, mvlcc_t a_mvlc)
+{
+	assert(out);
+	assert(a_mvlc);
+
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	auto &mvlc = m->mvlc;
+	auto counters = mvlc.getCmdPipeCounters();
+
+	fprintf(out, fmt::format("super txs: totalTxs={}, retries={}, cmd txs: totalTxs={}, retries={}, execRequestsLost={}, execResponsesLost={}",
+		counters.superTransactionCount, counters.superTransactionRetries,
+		counters.stackTransactionCount, counters.stackTransactionRetries,
+		counters.stackExecRequestsLost, counters.stackExecResponsesLost).c_str());
+
+}
