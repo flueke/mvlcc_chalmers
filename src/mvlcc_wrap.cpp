@@ -557,11 +557,16 @@ void mvlcc_print_mvlc_cmd_counters(FILE *out, mvlcc_t a_mvlc)
 
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 	auto &mvlc = m->mvlc;
-	auto counters = mvlc.getCmdPipeCounters();
+	const auto counters = mvlc.getCmdPipeCounters();
 
 	fprintf(out, fmt::format("super txs: totalTxs={}, retries={}, cmd txs: totalTxs={}, retries={}, execRequestsLost={}, execResponsesLost={}",
 		counters.superTransactionCount, counters.superTransactionRetries,
 		counters.stackTransactionCount, counters.stackTransactionRetries,
 		counters.stackExecRequestsLost, counters.stackExecResponsesLost).c_str());
 
+	if (m->ethernet)
+	{
+		const auto cmdStats = m->ethernet->getPipeStats()[0];
+		fprintf(out, fmt::format(", eth: lostPackets={}", cmdStats.lostPackets).c_str());
+	}
 }
