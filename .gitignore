@@ -1,1 +1,7 @@
 build_cc_x86_64-linux-gnu_12/
+example/*.o
+example/test
+example/test2
+example/test3
+example/test4
+*.sw?
