@@ -102,7 +102,7 @@ mvlcc_stop(mvlcc_t a_mvlc)
 	auto ec = disable_daq_mode_and_triggers(m->mvlc);
 	if (ec) {
 		printf("'%s'\n", ec.message().c_str());
-		abort();
+		return 1;
 	}
 
 	return 0;
@@ -131,7 +131,7 @@ mvlcc_init_readout(mvlcc_t a_mvlc)
 	rc = result.ec.value();
 	if (rc != 0) {
 		printf("init_readout: '%s'\n", result.ec.message().c_str());
-		abort();
+		return rc;
 	}
 
 	m->ethernet->resetPipeAndChannelStats();
@@ -141,7 +141,7 @@ mvlcc_init_readout(mvlcc_t a_mvlc)
 	auto ec = setup_readout_triggers(m->mvlc, m->config.triggers);
 	if (ec) {
 		printf("setup_readout_triggers: '%s'\n", ec.message().c_str());
-		abort();
+		return ec.value();
 	}
 
 	return rc;
@@ -164,7 +164,7 @@ send_empty_request(MVLC *a_mvlc)
 
 	if (ec) {
 		printf("Failure writing empty request.\n");
-		abort();
+		return ec.value();
 	}
 
 	return 0;
@@ -189,20 +189,20 @@ readout_eth(eth::MVLC_ETH_Interface *a_eth, uint8_t *a_buffer,
 		auto ec = result.ec;
 		if (ec == ErrorType::ConnectionError) {
 			printf("Connection error.\n");
-			abort();
+			return ec.value();
 		}
 		if (ec == MVLCErrorCode::ShortRead) {
 			printf("Short read.\n");
-			abort();
+			return ec.value();
 		}
 		rc = ec.value();
 		if (rc != 0) {
 			printf("'%s'\n", result.ec.message().c_str());
-			abort();
+			return ec.value();
 		}
 		if (result.leftoverBytes()) {
 			printf("Leftover bytes. Bailing out!\n");
-			abort();
+			return ec.value();
 		}
 		buffer += result.bytesTransferred;
 		bytes_free -= result.bytesTransferred;
@@ -233,7 +233,7 @@ mvlcc_readout_eth(mvlcc_t a_mvlc, uint8_t **a_buffer, size_t bytes_free)
 	rc = readout_eth(m->ethernet, buffer, bytes_free, &bytes_transferred);
 	if (rc != 0) {
 		printf("Failure in readout_eth %d\n", rc);
-		abort();
+		return rc;
 	}
 
 	printf("Transferred %lu bytes\n", bytes_transferred);
@@ -294,7 +294,7 @@ mvlcc_single_vme_read(mvlcc_t a_mvlc, uint32_t address, uint32_t * value, uint8_
   rc = ec.value();
   if (rc != 0) {
     printf("Failure in vmeRead %d (%s)\n", rc, ec.message().c_str());
-    abort();
+	return rc;
   }
 
   // printf("\nvalue = %x\n", *value);
@@ -317,7 +317,7 @@ mvlcc_single_vme_write(mvlcc_t a_mvlc, uint32_t address, uint32_t value, uint8_t
   rc = ec.value();
   if (rc != 0) {
     printf("Failure in vmeWrite %d\n", rc);
-    abort();
+	return rc;
   }
   //
   return rc;
