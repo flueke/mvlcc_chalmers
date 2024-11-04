@@ -570,3 +570,11 @@ void mvlcc_print_mvlc_cmd_counters(FILE *out, mvlcc_t a_mvlc)
 		fprintf(out, fmt::format(", eth: lostPackets={}", cmdStats.lostPackets).c_str());
 	}
 }
+
+void *mvlcc_get_mvlc_object(mvlcc_t a_mvlc)
+{
+	assert(a_mvlc);
+
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	return &m->mvlc;
+}

@@ -67,6 +67,9 @@ void mvlcc_set_global_log_level(const char *levelName);
  * cmd execution. */
 void mvlcc_print_mvlc_cmd_counters(FILE *out, mvlcc_t a_mvlc);
 
+// (flueke): Returns a pointer to the internal MVLC object. Used in the daq1 hack.
+void *mvlcc_get_mvlc_object(mvlcc_t a_mvlc);
+
 #ifdef __cplusplus
 }
 #endif
