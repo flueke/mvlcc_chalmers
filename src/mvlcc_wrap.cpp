@@ -9,6 +9,7 @@ struct mvlcc
 	mesytec::mvlc::CrateConfig config;
 	mesytec::mvlc::MVLC mvlc;
 	mesytec::mvlc::eth::MVLC_ETH_Interface *ethernet;
+	mesytec::mvlc::usb::MVLC_USB_Interface *usb;
 	std::vector<u32> bltWorkBuffer;
 };
 
@@ -21,6 +22,7 @@ static mvlcc_t make_mvlcc(const MVLC &mvlc, const CrateConfig &crateConfig = {})
 	auto ret = std::make_unique<mvlcc>();
 	ret->mvlc = mvlc;
 	ret->ethernet = dynamic_cast<eth::MVLC_ETH_Interface *>(ret->mvlc.getImpl());
+	ret->usb = dynamic_cast<usb::MVLC_USB_Interface *>(ret->mvlc.getImpl());
 	ret->config = crateConfig;
 	return ret.release();
 }
@@ -367,6 +369,12 @@ int mvlcc_is_ethernet(mvlcc_t a_mvlc)
 	return m->ethernet != nullptr;
 }
 
+int mvlcc_is_usb(mvlcc_t a_mvlc)
+{
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	return m->usb != nullptr;
+}
+
 namespace
 {
 // Direct VME block read execution support code:
@@ -431,9 +439,10 @@ int post_process_blt_data(const std::vector<u32> &src, util::span<uint32_t> dest
 {
 	// Input structure from directly executed block reads:
 	//  0xF3  outer stack frame header
-	//    0x??  reference word that was added by the MVLC library code. Same as a //  "marker" command in a readout script.
+	//    0x??  reference word that was added by the MVLC library code. Same as a "marker" command in a readout script.
 	//    0xF5  first block read frame header.
-	//   [0xF9  optional stack continuation frames]
+	// [0xF9  optional stack continuation frames]
+	//   [0xF5  optional continuations of the block read frame]
 
 	if (src.size() < 3)
 		return -1;

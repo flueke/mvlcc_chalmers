@@ -41,6 +41,7 @@ int mvlcc_register_write(mvlcc_t a_mvlc, uint16_t address, uint32_t value);
 const char *mvlcc_strerror(int errnum);
 int mvlcc_is_mvlc_valid(mvlcc_t a_mvlc);
 int mvlcc_is_ethernet(mvlcc_t a_mvlc);
+int mvlcc_is_usb(mvlcc_t a_mvlc);
 
 struct MvlccBlockReadParams
 {
