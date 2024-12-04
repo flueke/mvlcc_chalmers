@@ -4,11 +4,11 @@
 #include <stdint.h>
 #include <stdio.h> /* for FILE */
 
-typedef void *mvlcc_t;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef void *mvlcc_t;
 
 typedef enum {
   mvlcc_A16 = 0x29,
@@ -68,8 +68,38 @@ void mvlcc_set_global_log_level(const char *levelName);
  * cmd execution. */
 void mvlcc_print_mvlc_cmd_counters(FILE *out, mvlcc_t a_mvlc);
 
-/* (flueke): Returns a pointer to the internal MVLC object. Used in the daq1 hack. */
+/* (flueke): Returns a pointer to the internal MVLC object. */
 void *mvlcc_get_mvlc_object(mvlcc_t a_mvlc);
+
+typedef void *mvlcc_command_t;
+
+int mvlcc_command_from_string(mvlcc_command_t *cmd, const char *str);
+void mvlcc_command_destroy(mvlcc_command_t cmd);
+const char *mvlcc_command_get_error(mvlcc_command_t cmd);
+char *mvlcc_command_to_string(mvlcc_command_t cmd);
+uint32_t mvlcc_command_get_vme_address(mvlcc_command_t cmd);
+void mvlcc_command_set_vme_address(mvlcc_command_t cmd, uint32_t address);
+void mvlcc_command_add_to_vme_address(mvlcc_command_t cmd, uint32_t offset);
+
+typedef void *mvlcc_command_list_t;
+
+mvlcc_command_list_t mvlcc_command_list_create(void);
+void mvlcc_command_list_destroy(mvlcc_command_list_t cmd_list);
+void mvlcc_command_list_clear(mvlcc_command_list_t cmd_list);
+void mvlcc_command_list_begin_section(mvlcc_command_list_t cmd_list, const char *name);
+int mvlcc_command_list_add_command(mvlcc_command_list_t cmd_list, const char *cmd);
+
+char *mvlcc_command_list_to_text(mvlcc_command_list_t cmd_list);
+char *mvlcc_command_list_to_yaml(mvlcc_command_list_t cmd_list);
+char *mvlcc_command_list_to_json(mvlcc_command_list_t cmd_list);
+
+int mvlcc_command_list_from_text(mvlcc_command_list_t *cmd, const char *str);
+int mvlcc_command_list_from_yaml(mvlcc_command_list_t *cmd, const char *str);
+int mvlcc_command_list_from_json(mvlcc_command_list_t *cmd, const char *str);
+
+int mvlcc_setup_readout_stack(mvlcc_t a_mvlc, mvlcc_command_list_t cmd_list, uint8_t stackId, uint32_t stackTriggerValue);
+
+typedef void *mvlcc_crateconfig_t;
 
 #ifdef __cplusplus
 }

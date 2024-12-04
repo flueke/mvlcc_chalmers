@@ -5,3 +5,4 @@ example/test2
 example/test3
 example/test4
 *.sw?
+build*/

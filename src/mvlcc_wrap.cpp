@@ -78,6 +78,7 @@ mvlcc_free_mvlc(mvlcc_t a_mvlc)
 {
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 	m->ethernet = nullptr;
+	m->usb = nullptr;
 	delete m;
 }
 
@@ -587,3 +588,14 @@ void *mvlcc_get_mvlc_object(mvlcc_t a_mvlc)
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 	return &m->mvlc;
 }
+
+struct mvlcc_command_t
+{
+	mesytec::mvlc::StackCommand cmd;
+	std::string buffer;
+};
+
+struct mvlcc_command_list_t
+{
+
+};
