@@ -4,6 +4,7 @@ example/test
 example/test2
 example/test3
 example/test4
+example/mvlcc_mini_daq
 *.sw?
 build*/
 test/*.o

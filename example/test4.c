@@ -1,6 +1,7 @@
 #include <mvlcc_wrap.h>
 #include <stdio.h>
 #include <signal.h>
+#include <stdbool.h>
 
 // On SIGUP force printing a report, on SIGINT or SIGTERM quit.
 volatile int g_do_quit ;

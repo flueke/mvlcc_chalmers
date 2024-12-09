@@ -2,31 +2,25 @@ MVLCC_DIR = ../
 
 MVLCC_CONFIG = $(MVLCC_DIR)/bin/mvlcc-config.sh
 
-CFLAGS +=  $(shell $(MVLCC_CONFIG) --cflags)
+CFLAGS +=  $(shell $(MVLCC_CONFIG) --cflags) -ggdb -O0
 LDFLAGS += $(shell $(MVLCC_CONFIG) --ldflags)
 LIBS +=    $(shell $(MVLCC_CONFIG) --libs)
 
-.PHONY: all test3 test4 # always rebuild test3 just in case the mvlcc lib changed
+.PHONY: all
 
-all: test test2 test3 test4
+all: test test2 test3 test4 mvlcc_mini_daq
 
-test.o: test.c
-	gcc -o $@ -c $< $(CFLAGS)
+%.o: %.c
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+%: %.o
+	$(CC) -o $@ $< $(LDFLAGS) $(LIBS)
 
 test: test.o
-	g++ -o $@ $< $(LDFLAGS) $(LIBS)
-
-test2.o: test2.c
-	gcc -o $@ -c $< $(CFLAGS)
-
 test2: test2.o
-	g++ -o $@ $< $(LDFLAGS) $(LIBS)
-
-test3: test3.c
-	g++ -o $@ $< $(CFLAGS) $(LDFLAGS) $(LIBS)
-
-test4: test4.c
-	g++ -o $@ $< $(CFLAGS) $(LDFLAGS) $(LIBS)
+test3: test3.o
+test4: test4.o
+mvlcc_mini_daq: mvlcc_mini_daq.o
 
 clean:
-	rm -rf test test.o test2 test2.o test3 test3.o test4 test4.o
+	rm -rf test test.o test2 test2.o test3 test3.o test4 test4.o mvlcc_mini_daq mvlcc_mini_daq.o
