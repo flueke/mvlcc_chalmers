@@ -169,6 +169,55 @@ void mvlcc_readout_context_set_mvlc(mvlcc_readout_context_t ctx, mvlcc_t a_mvlc)
 
 int mvlcc_readout(mvlcc_readout_context_t ctx, uint8_t *dest, size_t bytes_free, size_t *bytes_used, int timeout_ms);
 
+typedef struct
+{
+  const uint32_t *data;
+  size_t size;
+} mvlcc_const_span_t;
+
+typedef struct
+{
+    mvlcc_const_span_t data_span;
+    uint32_t prefix_size;
+    uint32_t dynamic_size;
+    uint32_t suffix_size;
+    int has_dynamic;
+} mvlcc_module_data_t;
+
+mvlcc_const_span_t mvlcc_module_data_get_prefix(mvlcc_module_data_t md);
+mvlcc_const_span_t mvlcc_module_data_get_dynamic(mvlcc_module_data_t md);
+mvlcc_const_span_t mvlcc_module_data_get_suffix(mvlcc_module_data_t md);
+int mvlcc_module_data_check_consistency(mvlcc_module_data_t md);
+
+typedef void (*event_data_callback_t)(void *userContext, int crateIndex, int eventIndex,
+  const mvlcc_module_data_t *moduleDataList, unsigned moduleCount);
+
+typedef void (*system_event_callback_t)(void *userContext, int crateIndex,
+  mvlcc_const_span_t data);
+
+typedef struct
+{
+  intptr_t d;
+} mvlcc_readout_parser_t;
+
+int mvlcc_readout_parser_create(
+  mvlcc_readout_parser_t *parserp,
+  mvlcc_crateconfig_t crateconfig,
+  void *userContext,
+  event_data_callback_t event_data_callback,
+  system_event_callback_t system_event_callback);
+
+typedef int mvlcc_parse_result_t;
+
+const char *mvlcc_parse_result_to_string(mvlcc_parse_result_t result);
+
+mvlcc_parse_result_t mvlcc_readout_parser_parse_buffer(
+  mvlcc_readout_parser_t parser,
+  size_t linear_buffer_number,
+  const uint32_t *buffer,
+  size_t size);
+
+
 #ifdef __cplusplus
 }
 #endif

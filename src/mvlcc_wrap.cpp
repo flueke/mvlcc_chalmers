@@ -1010,3 +1010,120 @@ int mvlcc_readout(mvlcc_readout_context_t ctx, uint8_t *dest, size_t bytes_free,
 	*bytes_used = bytesRead;
 	return ec.value();
 }
+
+mvlcc_const_span_t mvlcc_module_data_get_prefix(mvlcc_module_data_t md)
+{
+  mvlcc_const_span_t result = {md.data_span.data, md.prefix_size};
+  return result;
+}
+
+mvlcc_const_span_t mvlcc_module_data_get_dynamic(mvlcc_module_data_t md)
+{
+  mvlcc_const_span_t result = {md.data_span.data + md.prefix_size, md.dynamic_size};
+  return result;
+}
+
+mvlcc_const_span_t mvlcc_module_data_get_suffix(mvlcc_module_data_t md)
+{
+  mvlcc_const_span_t result = {md.data_span.data + md.prefix_size + md.dynamic_size, md.suffix_size};
+  return result;
+}
+
+int mvlcc_module_data_check_consistency(mvlcc_module_data_t md)
+{
+    uint64_t partSum = md.prefix_size + md.dynamic_size + md.suffix_size;
+    int sumOk = partSum == md.data_span.size;
+    // Note: cannot test the opposite: the current dynamicSize can be 0 but
+    // hasDynamic can be true at the same time, e.g. from empty block reads.
+    int dynOk = md.dynamic_size > 0 ? md.has_dynamic : 1;
+    return sumOk && dynOk;
+}
+
+struct mvlcc_readout_parser: public mvlcc_error_buffer
+{
+  CrateConfig crateConfig;
+  void *cUserContext;
+  event_data_callback_t cEventData;
+  system_event_callback_t cSystemEvent;
+  readout_parser::ReadoutParserCallbacks parserCallbacks;
+  readout_parser::ReadoutParserState readoutParser;
+  readout_parser::ReadoutParserCounters parserCounters;
+  std::vector<mvlcc_module_data_t> cModuleData;
+};
+
+static void event_data_internal(void *userContext, int crateIndex, int eventIndex,
+	const readout_parser::ModuleData *moduleDataList, unsigned moduleCount)
+{
+	auto d = reinterpret_cast<mvlcc_readout_parser *>(userContext);
+	d->cModuleData.resize(moduleCount);
+
+	for (size_t mi=0; mi<moduleCount; ++mi)
+	{
+		d->cModuleData[mi].data_span = { moduleDataList[mi].data.data, moduleDataList[mi].data.size };
+		d->cModuleData[mi].prefix_size = moduleDataList[mi].prefixSize;
+		d->cModuleData[mi].dynamic_size = moduleDataList[mi].dynamicSize;
+		d->cModuleData[mi].suffix_size = moduleDataList[mi].suffixSize;
+		d->cModuleData[mi].has_dynamic = moduleDataList[mi].hasDynamic;
+	}
+
+	d->cEventData(d->cUserContext, crateIndex, eventIndex, d->cModuleData.data(), moduleCount);
+}
+
+static void system_event_internal(void *userContext, int crateIndex,
+	const u32 *header, u32 size)
+{
+	auto d = reinterpret_cast<mvlcc_readout_parser *>(userContext);
+	d->cSystemEvent(d->cUserContext, crateIndex, { header, size });
+}
+
+int mvlcc_readout_parser_create(
+  mvlcc_readout_parser_t *parserp,
+  mvlcc_crateconfig_t crateconfig,
+  void *userContext,
+  event_data_callback_t event_data_callback,
+  system_event_callback_t system_event_callback)
+{
+	mvlcc_readout_parser_t result = {};
+	auto d = set_d(result, new mvlcc_readout_parser);
+
+	try
+	{
+		d->crateConfig = get_d<mvlcc_crateconfig>(crateconfig)->config;
+		d->cUserContext = userContext;
+		d->cEventData = event_data_callback;
+		d->cSystemEvent = system_event_callback;
+		d->parserCallbacks.eventData = event_data_internal;
+		d->parserCallbacks.systemEvent = system_event_internal;
+		d->readoutParser = readout_parser::make_readout_parser(d->crateConfig.stacks, d);
+		return 0;
+	}
+	catch (const std::exception &e)
+	{
+		d->errorString = e.what();
+		return -1;
+	}
+}
+
+mvlcc_parse_result_t mvlcc_readout_parser_parse_buffer(
+  mvlcc_readout_parser_t parser,
+  size_t linear_buffer_number,
+  const uint32_t *buffer,
+  size_t size)
+{
+	auto d = get_d<mvlcc_readout_parser>(parser);
+
+	auto result = readout_parser::parse_readout_buffer(
+		d->crateConfig.connectionType,
+		d->readoutParser,
+		d->parserCallbacks,
+		d->parserCounters,
+		linear_buffer_number, buffer, size);
+
+	return static_cast<int>(result);
+}
+
+const char *mvlcc_parse_result_to_string(mvlcc_parse_result_t result)
+{
+	return readout_parser::get_parse_result_name(
+		static_cast<readout_parser::ParseResult>(result));
+}
