@@ -6,3 +6,5 @@ example/test3
 example/test4
 *.sw?
 build*/
+test/*.o
+test/test_*

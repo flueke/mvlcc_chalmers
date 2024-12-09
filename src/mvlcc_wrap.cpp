@@ -1,6 +1,7 @@
 #include <mvlcc_wrap.h>
 
 #include <mesytec-mvlc/mesytec-mvlc.h>
+#include <string.h>
 
 using namespace mesytec::mvlc;
 
@@ -137,9 +138,11 @@ mvlcc_init_readout(mvlcc_t a_mvlc)
 		return rc;
 	}
 
-	m->ethernet->resetPipeAndChannelStats();
-
-	send_empty_request(&m->mvlc);
+	if (m->ethernet)
+	 {
+		m->ethernet->resetPipeAndChannelStats();
+		send_empty_request(&m->mvlc);
+	}
 
 	auto ec = setup_readout_triggers(m->mvlc, m->config.triggers);
 	if (ec) {
@@ -539,7 +542,7 @@ int mvlcc_vme_block_read(mvlcc_t a_mvlc, uint32_t address, uint32_t *buffer, siz
 
 	*sizeOut = 0;
 
-	if (!ec)
+	if (!ec || ec != MVLCErrorCode::VMEBusError)
 	{
 		util::span<uint32_t> dest(buffer, sizeIn);
 
@@ -589,13 +592,371 @@ void *mvlcc_get_mvlc_object(mvlcc_t a_mvlc)
 	return &m->mvlc;
 }
 
-struct mvlcc_command_t
+// Helpers for the intptr_t holding structures. T is the *_t typedefed struct, D
+// is the concrete struct type.
+
+template<typename T, typename D>
+D *set_d(T &t, D *d)
+{
+	t.d = reinterpret_cast<intptr_t>(d);
+	return d;
+}
+
+template<typename D, typename T>
+D *get_d(T &t)
+{
+	return reinterpret_cast<D *>(t.d);
+}
+
+// Base to hold memory for the strerror() functions.
+struct mvlcc_error_buffer
+{
+	std::string errorString;
+};
+
+struct mvlcc_command: public mvlcc_error_buffer
 {
 	mesytec::mvlc::StackCommand cmd;
-	std::string buffer;
 };
 
-struct mvlcc_command_list_t
+int mvlcc_command_from_string(mvlcc_command_t *cmdp, const char *str)
 {
+	auto d = set_d(*cmdp, new mvlcc_command);
 
+	try
+	{
+		d->cmd = mesytec::mvlc::stack_command_from_string(str);
+		return 0;
+	}
+	catch(const std::exception& e)
+	{
+		d->errorString = e.what();
+		return -1;
+	}
+}
+
+void mvlcc_command_destroy(mvlcc_command_t cmd)
+{
+	delete get_d<mvlcc_command>(cmd);
+}
+
+const char *mvlcc_command_strerror(mvlcc_command_t cmd)
+{
+	auto d = get_d<mvlcc_command>(cmd);
+	return d->errorString.c_str();
+}
+
+char *mvlcc_command_to_string(mvlcc_command_t cmd)
+{
+	auto d = get_d<mvlcc_command>(cmd);
+	return strdup(mesytec::mvlc::to_string(d->cmd).c_str());
+}
+
+uint32_t mvlcc_command_get_vme_address(mvlcc_command_t cmd)
+{
+	auto d = get_d<mvlcc_command>(cmd);
+	return d->cmd.address;
+}
+
+void mvlcc_command_set_vme_address(mvlcc_command_t cmd, uint32_t address)
+{
+	auto d = get_d<mvlcc_command>(cmd);
+	d->cmd.address = address;
+}
+
+void mvlcc_command_add_to_vme_address(mvlcc_command_t cmd, uint32_t offset)
+{
+	auto d = get_d<mvlcc_command>(cmd);
+	d->cmd.address += offset;
+}
+
+struct mvlcc_command_list: public mvlcc_error_buffer
+{
+	mesytec::mvlc::StackCommandBuilder cmdList;
 };
+
+mvlcc_command_list_t mvlcc_command_list_create()
+{
+	mvlcc_command_list_t result = {};
+	set_d(result, new mvlcc_command_list);
+	return result;
+}
+
+void mvlcc_command_list_destroy(mvlcc_command_list_t cmd_list)
+{
+	delete get_d<mvlcc_command_list>(cmd_list);
+}
+
+void mvlcc_command_list_clear(mvlcc_command_list_t cmd_list)
+{
+	get_d<mvlcc_command_list>(cmd_list)->cmdList.clear();
+}
+
+size_t mvlcc_command_list_total_size(mvlcc_command_list_t cmd_list)
+{
+	return get_d<mvlcc_command_list>(cmd_list)->cmdList.commandCount();
+}
+
+size_t mvlcc_command_list_begin_module_group(mvlcc_command_list_t cmd_list, const char *name)
+{
+	auto d = get_d<mvlcc_command_list>(cmd_list);
+	d->cmdList.beginGroup(name);
+	return d->cmdList.groupCount() - 1;
+}
+
+size_t mvlcc_command_list_get_module_group_count(mvlcc_command_list_t cmd_list)
+{
+	return get_d<mvlcc_command_list>(cmd_list)->cmdList.groupCount();
+}
+
+const char *mvlcc_command_list_get_module_group_name(mvlcc_command_list_t cmd_list, size_t index)
+{
+	auto d = get_d<mvlcc_command_list>(cmd_list);
+	if (index < d->cmdList.getGroups().size())
+		return d->cmdList.getGroup(index).name.c_str();
+
+	return nullptr;
+}
+
+int mvlcc_command_list_add_command(mvlcc_command_list_t cmd_list, const char *cmd)
+{
+	auto d = get_d<mvlcc_command_list>(cmd_list);
+
+	try
+	{
+		d->cmdList.addCommand(mesytec::mvlc::stack_command_from_string(cmd));
+		return 0;
+	}
+	catch (const std::exception &e)
+	{
+		d->errorString = e.what();
+		return -1;
+	}
+}
+
+char *mvlcc_command_list_to_yaml(mvlcc_command_list_t cmd_list)
+{
+	auto d = get_d<mvlcc_command_list>(cmd_list);
+	return strdup(mesytec::mvlc::to_yaml(d->cmdList).c_str());
+}
+
+char *mvlcc_command_list_to_json(mvlcc_command_list_t cmd_list)
+{
+	auto d = get_d<mvlcc_command_list>(cmd_list);
+	return strdup(mesytec::mvlc::to_json(d->cmdList).c_str());
+}
+
+char *mvlcc_command_list_to_text(mvlcc_command_list_t cmd_list)
+{
+	auto d = get_d<mvlcc_command_list>(cmd_list);
+	std::string buffer;
+	for (const auto &cmd: d->cmdList.getCommands())
+	{
+		buffer += mesytec::mvlc::to_string(cmd) + "\n";
+	}
+
+	return strdup(buffer.c_str());
+}
+
+int mvlcc_command_list_from_yaml(mvlcc_command_list_t *cmd_listp, const char *str)
+{
+	*cmd_listp = mvlcc_command_list_create();
+	auto d = get_d<mvlcc_command_list>(*cmd_listp);
+
+	try
+	{
+		d->cmdList = mesytec::mvlc::stack_command_builder_from_yaml(str);
+		return 0;
+	}
+	catch(const std::exception& e)
+	{
+		d->errorString = e.what();
+		return -1;
+	}
+}
+
+int mvlcc_command_list_from_json(mvlcc_command_list_t *cmd_listp, const char *str)
+{
+	*cmd_listp = mvlcc_command_list_create();
+	auto d = get_d<mvlcc_command_list>(*cmd_listp);
+
+	try
+	{
+		d->cmdList = mesytec::mvlc::stack_command_builder_from_json(str);
+		return 0;
+	}
+	catch(const std::exception& e)
+	{
+		d->errorString = e.what();
+		return -1;
+	}
+}
+
+int mvlcc_command_list_from_text(mvlcc_command_list_t *cmd_listp, const char *str)
+{
+	*cmd_listp = mvlcc_command_list_create();
+	auto d = get_d<mvlcc_command_list>(*cmd_listp);
+
+	try
+	{
+		mesytec::mvlc::StackCommandBuilder builder;
+		std::string line;
+		std::istringstream iss(str);
+		while (std::getline(iss, line))
+		{
+			if (line.empty())
+				continue;
+
+			builder.addCommand(mesytec::mvlc::stack_command_from_string(line));
+		}
+
+		d->cmdList = std::move(builder);
+		return 0;
+	}
+	catch(const std::exception& e)
+	{
+		d->errorString = e.what();
+		return -1;
+	}
+}
+
+int mvlcc_command_list_eq(mvlcc_command_list_t a, mvlcc_command_list_t b)
+{
+	auto da = get_d<mvlcc_command_list>(a);
+	auto db = get_d<mvlcc_command_list>(b);
+	return da->cmdList == db->cmdList;
+}
+
+const char *mvlcc_command_list_strerror(mvlcc_command_list_t cmd_list)
+{
+	auto d = get_d<mvlcc_command_list>(cmd_list);
+	return d->errorString.c_str();
+}
+
+struct mvlcc_crateconfig: public mvlcc_error_buffer
+{
+	mesytec::mvlc::CrateConfig config;
+};
+
+mvlcc_crateconfig_t mvlcc_createconfig_create()
+{
+	mvlcc_crateconfig_t result = {};
+	set_d(result, new mvlcc_crateconfig);
+	return result;
+}
+
+void mvlcc_crateconfig_destroy(mvlcc_crateconfig_t crateconfig)
+{
+	delete get_d<mvlcc_crateconfig>(crateconfig);
+}
+
+char *mvlcc_crateconfig_to_yaml(mvlcc_crateconfig_t crateconfig)
+{
+	auto d = get_d<mvlcc_crateconfig>(crateconfig);
+	return strdup(mesytec::mvlc::to_yaml(d->config).c_str());
+}
+
+char *mvlcc_crateconfig_to_json(mvlcc_crateconfig_t crateconfig)
+{
+	auto d = get_d<mvlcc_crateconfig>(crateconfig);
+	return strdup(mesytec::mvlc::to_json(d->config).c_str());
+}
+
+int mvlcc_crateconfig_from_yaml(mvlcc_crateconfig_t *crateconfigp, const char *str)
+{
+	*crateconfigp = mvlcc_createconfig_create();
+	auto d = get_d<mvlcc_crateconfig>(*crateconfigp);
+
+	try
+	{
+		d->config = mesytec::mvlc::crate_config_from_yaml(str);
+		return 0;
+	}
+	catch(const std::exception& e)
+	{
+		d->errorString = e.what();
+		return -1;
+	}
+}
+
+int mvlcc_crateconfig_from_json(mvlcc_crateconfig_t *crateconfigp, const char *str)
+{
+	*crateconfigp = mvlcc_createconfig_create();
+	auto d = get_d<mvlcc_crateconfig>(*crateconfigp);
+
+	try
+	{
+		d->config = mesytec::mvlc::crate_config_from_json(str);
+		return 0;
+	}
+	catch(const std::exception& e)
+	{
+		d->errorString = e.what();
+		return -1;
+	}
+}
+
+mvlcc_command_list_t mvlcc_crateconfig_get_readout_stack(
+  mvlcc_crateconfig_t crateconfig, unsigned stackId)
+{
+	auto d_crateconfig = get_d<mvlcc_crateconfig>(crateconfig);
+
+	if (stackId >= d_crateconfig->config.stacks.size())
+		return {};
+
+	auto cmd_list = mvlcc_command_list_create();
+	auto d_cmd_list = get_d<mvlcc_command_list>(cmd_list);
+	d_cmd_list->cmdList = d_crateconfig->config.stacks[stackId];
+
+	return cmd_list;
+}
+
+int mvlcc_crateconfig_set_readout_stack(
+  mvlcc_crateconfig_t crateconfig, unsigned stackId, mvlcc_command_list_t cmd_list)
+{
+	auto d_crateconfig = get_d<mvlcc_crateconfig>(crateconfig);
+	auto d_cmd_list = get_d<mvlcc_command_list>(cmd_list);
+
+	if (stackId >= mesytec::mvlc::stacks::ReadoutStackCount)
+		return -1;
+
+	d_crateconfig->config.stacks.resize(std::max(d_crateconfig->config.stacks.size(), static_cast<size_t>(stackId + 1)));
+	d_crateconfig->config.stacks[stackId] = d_cmd_list->cmdList;
+
+	return 0;
+}
+
+int
+mvlcc_init_readout2(mvlcc_t a_mvlc, mvlcc_crateconfig_t crateconfig)
+{
+	int rc;
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	auto d_crateconfig = get_d<mvlcc_crateconfig>(crateconfig);
+
+	assert(m->ethernet);
+
+	auto result = init_readout(m->mvlc, d_crateconfig->config, {});
+
+	printf("mvlcc_init_readout\n");
+	// std::cout << "init_readout result = " << result.init << std::endl;
+
+	rc = result.ec.value();
+	if (rc != 0) {
+		printf("init_readout: '%s'\n", result.ec.message().c_str());
+		return rc;
+	}
+
+	if (m->ethernet)
+	 {
+		m->ethernet->resetPipeAndChannelStats();
+		send_empty_request(&m->mvlc);
+	}
+
+	auto ec = setup_readout_triggers(m->mvlc, m->config.triggers);
+	if (ec) {
+		printf("setup_readout_triggers: '%s'\n", ec.message().c_str());
+		return ec.value();
+	}
+
+	return rc;
+}

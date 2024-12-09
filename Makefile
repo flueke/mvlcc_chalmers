@@ -17,6 +17,7 @@ CXXFLAGS += -fPIC
 CXXFLAGS += -Iinclude
 CXXFLAGS += -std=c++17
 CXXFLAGS += -I$(MVLC_DIR)/include -isystem $(MVLC_DIR)/include/mesytec-mvlc
+CXXFLAGS += -Wno-dangling-reference # silence spdlog + gcc-14 warnings
 
 ifeq (,$(MODE))
   CXXFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE
@@ -72,6 +73,10 @@ $(BUILD_DIR)/mvlcc.config: | $(BUILD_DIR)
 	$(QUIET)rm -f $@
 	$(QUIET)echo "export MVLC_DIR=\"$(MVLC_DIR)\"" >> $@
 
-.PHONY: clean
+.PHONY: clean test
 clean:
 	rm -rf ./$(BUILD_DIR)
+	+make -C test clean
+
+test: $(TARGET)
+	+make -C test BUILD_DIR=$(BUILD_DIR) && ./test/test_mvlcc_wrap

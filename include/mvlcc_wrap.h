@@ -8,6 +8,7 @@
 extern "C" {
 #endif
 
+/* TODO: port this to the d-type struct pattern */
 typedef void *mvlcc_t;
 
 typedef enum {
@@ -23,7 +24,7 @@ typedef enum {
   mvlcc_D_ERR = -1
 } mvlcc_data_width_t;
 
-mvlcc_t mvlcc_make_mvlc_from_crate_config(const char *);
+mvlcc_t mvlcc_make_mvlc_from_crate_config(const char *filename);
 mvlcc_t mvlcc_make_mvlc(const char *urlstr);
 mvlcc_t mvlcc_make_mvlc_eth(const char *host);
 mvlcc_t mvlcc_make_mvlc_usb_from_index(int index);
@@ -32,8 +33,6 @@ void mvlcc_free_mvlc(mvlcc_t a_mvlc);
 int mvlcc_connect(mvlcc_t);
 int mvlcc_stop(mvlcc_t);
 void mvlcc_disconnect(mvlcc_t);
-int mvlcc_init_readout(mvlcc_t);
-int mvlcc_readout_eth(mvlcc_t, uint8_t **, size_t);
 int mvlcc_single_vme_read(mvlcc_t a_mvlc, uint32_t address, uint32_t * value, uint8_t amod, uint8_t dataWidth);
 int mvlcc_single_vme_write(mvlcc_t a_mvlc, uint32_t address, uint32_t value, uint8_t amod, uint8_t dataWidth);
 int mvlcc_register_read(mvlcc_t a_mvlc, uint16_t address, uint32_t *value);
@@ -42,6 +41,13 @@ const char *mvlcc_strerror(int errnum);
 int mvlcc_is_mvlc_valid(mvlcc_t a_mvlc);
 int mvlcc_is_ethernet(mvlcc_t a_mvlc);
 int mvlcc_is_usb(mvlcc_t a_mvlc);
+
+/* Uses the internal mesytec::mvlc::CrateConfig set when
+ * mvlcc_make_mvlc_from_crate_config() was used.
+ * See mvlcc_init_readout2() below for a variant taking a
+ * CrateConfig object. */
+int mvlcc_init_readout(mvlcc_t *a_mvlc);
+int mvlcc_readout_eth(mvlcc_t, uint8_t **, size_t);
 
 struct MvlccBlockReadParams
 {
@@ -68,38 +74,92 @@ void mvlcc_set_global_log_level(const char *levelName);
  * cmd execution. */
 void mvlcc_print_mvlc_cmd_counters(FILE *out, mvlcc_t a_mvlc);
 
-/* (flueke): Returns a pointer to the internal MVLC object. */
+/* (flueke): Returns a pointer to the internal MVLC object. Use from C++ only. */
 void *mvlcc_get_mvlc_object(mvlcc_t a_mvlc);
 
-typedef void *mvlcc_command_t;
+typedef struct
+{
+  intptr_t d;
+} mvlcc_command_t;
 
-int mvlcc_command_from_string(mvlcc_command_t *cmd, const char *str);
+int mvlcc_command_from_string(mvlcc_command_t *cmdp, const char *str);
 void mvlcc_command_destroy(mvlcc_command_t cmd);
-const char *mvlcc_command_get_error(mvlcc_command_t cmd);
+const char *mvlcc_command_strerror(mvlcc_command_t cmd);
 char *mvlcc_command_to_string(mvlcc_command_t cmd);
 uint32_t mvlcc_command_get_vme_address(mvlcc_command_t cmd);
 void mvlcc_command_set_vme_address(mvlcc_command_t cmd, uint32_t address);
 void mvlcc_command_add_to_vme_address(mvlcc_command_t cmd, uint32_t offset);
 
-typedef void *mvlcc_command_list_t;
+/* Wraps mesytec::mvlc::StackCommandBuilder */
+typedef struct
+{
+  intptr_t d;
+} mvlcc_command_list_t;
 
-mvlcc_command_list_t mvlcc_command_list_create(void);
+mvlcc_command_list_t mvlcc_command_list_create();
 void mvlcc_command_list_destroy(mvlcc_command_list_t cmd_list);
 void mvlcc_command_list_clear(mvlcc_command_list_t cmd_list);
-void mvlcc_command_list_begin_section(mvlcc_command_list_t cmd_list, const char *name);
-int mvlcc_command_list_add_command(mvlcc_command_list_t cmd_list, const char *cmd);
+size_t mvlcc_command_list_total_size(mvlcc_command_list_t cmd_list);
+size_t mvlcc_command_list_begin_module_group(mvlcc_command_list_t cmd_list, const char *name);
+size_t mvlcc_command_list_get_module_group_count(mvlcc_command_list_t cmd_list);
+const char *mvlcc_command_list_get_module_group_name(mvlcc_command_list_t cmd_list, size_t index);
+int mvlcc_command_list_add_command(mvlcc_command_list_t cmd_list, const char *cmd_str);
 
-char *mvlcc_command_list_to_text(mvlcc_command_list_t cmd_list);
+const char *mvlcc_command_list_strerror(mvlcc_command_list_t cmd_list);
+
+/* The returned string must be free()'d by the caller. */
 char *mvlcc_command_list_to_yaml(mvlcc_command_list_t cmd_list);
 char *mvlcc_command_list_to_json(mvlcc_command_list_t cmd_list);
+char *mvlcc_command_list_to_text(mvlcc_command_list_t cmd_list);
 
-int mvlcc_command_list_from_text(mvlcc_command_list_t *cmd, const char *str);
-int mvlcc_command_list_from_yaml(mvlcc_command_list_t *cmd, const char *str);
-int mvlcc_command_list_from_json(mvlcc_command_list_t *cmd, const char *str);
+/* These return 0 on success, -1 otherwise. Use mvlcc_command_list_strerror() to
+ * get the last error message.
+ * Call mvlcc_command_list_destroy() on the cmd_list even if an error occurs!
+ */
+int mvlcc_command_list_from_yaml(mvlcc_command_list_t *cmd_listp, const char *str);
+int mvlcc_command_list_from_json(mvlcc_command_list_t *cmd_listp, const char *str);
+int mvlcc_command_list_from_text(mvlcc_command_list_t *cmd_listp, const char *str);
 
-int mvlcc_setup_readout_stack(mvlcc_t a_mvlc, mvlcc_command_list_t cmd_list, uint8_t stackId, uint32_t stackTriggerValue);
+/* boolean return value. */
+int mvlcc_command_list_eq(mvlcc_command_list_t a, mvlcc_command_list_t b);
 
-typedef void *mvlcc_crateconfig_t;
+typedef struct
+{
+  intptr_t d;
+} mvlcc_crateconfig_t;
+
+mvlcc_crateconfig_t mvlcc_createconfig_create();
+void mvlcc_crateconfig_destroy(mvlcc_crateconfig_t crateconfig);
+
+/* The returned string must be free()'d by the caller. */
+char *mvlcc_crateconfig_to_yaml(mvlcc_crateconfig_t crateconfig);
+char *mvlcc_crateconfig_to_json(mvlcc_crateconfig_t crateconfig);
+
+int mvlcc_crateconfig_from_yaml(mvlcc_crateconfig_t *crateconfigp, const char *str);
+int mvlcc_crateconfig_from_json(mvlcc_crateconfig_t *crateconfigp, const char *str);
+
+/* Returns a copy of the crateconfigs readout stack. */
+mvlcc_command_list_t mvlcc_crateconfig_get_readout_stack(
+  mvlcc_crateconfig_t crateconfig, unsigned stackId);
+
+/* Replaces the specified readout stack in the crateconfig with the given
+ * cmd_list. cmd_list stays valid and needs to be destroyed by the caller.
+ * Returns 0 on success, -1 otherwise.
+ */
+int mvlcc_crateconfig_set_readout_stack(
+  mvlcc_crateconfig_t crateconfig, unsigned stackId, mvlcc_command_list_t cmd_list);
+
+int mvlcc_init_readout2(mvlcc_t a_mvlc, mvlcc_crateconfig_t crateconfig);
+
+typedef void *mvlcc_readout_context_t;
+
+mvlcc_readout_context_t mvlcc_readout_context_create();
+mvlcc_readout_context_t mvlcc_readout_context_create2(mvlcc_t a_mvlc);
+void mvlcc_readout_context_destroy(mvlcc_readout_context_t ctx);
+void mvlcc_readout_context_set_mvlc(mvlcc_readout_context_t ctx, mvlcc_t a_mvlc);
+mvlcc_t mvlcc_readout_context_get_mvlc(mvlcc_readout_context_t ctx);
+
+int mvlcc_readout(mvlcc_readout_context_t ctx, uint8_t *dest, size_t bytes_free, size_t *bytes_used);
 
 #ifdef __cplusplus
 }
