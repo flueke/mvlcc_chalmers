@@ -1,4 +1,3 @@
-#include <mvlcc_readout_config.h>
 #include <mvlcc_wrap.h>
 #include <stdio.h>
 
@@ -26,7 +25,7 @@ int main(int argc, char *argv[]){
       fprintf(stderr, "Could not connect.\n");
       return 1;
     }
-  
+
   vmeBase = 0x21000000u;
   regAddr = 0x6008u;
   readValue = 0u;
@@ -45,7 +44,7 @@ int main(int argc, char *argv[]){
 	}
 
       regAddr = 0x6004u;
-  
+
       ec = mvlcc_single_vme_write(mvlc, vmeBase + regAddr, 9, 32, 16);
 
       if (ec)
@@ -72,7 +71,7 @@ int main(int argc, char *argv[]){
 	    tell += 5000;
 	}
     }
-  
+
 
   mvlcc_disconnect(mvlc);
 
