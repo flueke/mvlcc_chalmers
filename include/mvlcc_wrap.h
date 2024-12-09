@@ -47,7 +47,10 @@ int mvlcc_is_usb(mvlcc_t a_mvlc);
  * See mvlcc_init_readout2() below for a variant taking a
  * CrateConfig object. */
 int mvlcc_init_readout(mvlcc_t *a_mvlc);
-int mvlcc_readout_eth(mvlcc_t, uint8_t **, size_t);
+
+/* Use mvlcc_readout() instead.
+   int mvlcc_readout_eth(mvlcc_t, uint8_t **, size_t);
+*/
 
 struct MvlccBlockReadParams
 {
@@ -82,6 +85,10 @@ typedef struct
   intptr_t d;
 } mvlcc_command_t;
 
+/* Returns 0 on success, -1 otherwise. Use mvlcc_command_strerror() to
+ * get the last error message.
+ * Call mvlcc_command_destroy() on the cmd even if an error occurs!
+ */
 int mvlcc_command_from_string(mvlcc_command_t *cmdp, const char *str);
 void mvlcc_command_destroy(mvlcc_command_t cmd);
 const char *mvlcc_command_strerror(mvlcc_command_t cmd);
@@ -104,7 +111,6 @@ size_t mvlcc_command_list_begin_module_group(mvlcc_command_list_t cmd_list, cons
 size_t mvlcc_command_list_get_module_group_count(mvlcc_command_list_t cmd_list);
 const char *mvlcc_command_list_get_module_group_name(mvlcc_command_list_t cmd_list, size_t index);
 int mvlcc_command_list_add_command(mvlcc_command_list_t cmd_list, const char *cmd_str);
-
 const char *mvlcc_command_list_strerror(mvlcc_command_list_t cmd_list);
 
 /* The returned string must be free()'d by the caller. */
@@ -151,15 +157,17 @@ int mvlcc_crateconfig_set_readout_stack(
 
 int mvlcc_init_readout2(mvlcc_t a_mvlc, mvlcc_crateconfig_t crateconfig);
 
-typedef void *mvlcc_readout_context_t;
+typedef struct
+{
+  intptr_t d;
+} mvlcc_readout_context_t;
 
 mvlcc_readout_context_t mvlcc_readout_context_create();
 mvlcc_readout_context_t mvlcc_readout_context_create2(mvlcc_t a_mvlc);
 void mvlcc_readout_context_destroy(mvlcc_readout_context_t ctx);
 void mvlcc_readout_context_set_mvlc(mvlcc_readout_context_t ctx, mvlcc_t a_mvlc);
-mvlcc_t mvlcc_readout_context_get_mvlc(mvlcc_readout_context_t ctx);
 
-int mvlcc_readout(mvlcc_readout_context_t ctx, uint8_t *dest, size_t bytes_free, size_t *bytes_used);
+int mvlcc_readout(mvlcc_readout_context_t ctx, uint8_t *dest, size_t bytes_free, size_t *bytes_used, int timeout_ms);
 
 #ifdef __cplusplus
 }

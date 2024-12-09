@@ -180,6 +180,7 @@ send_empty_request(MVLC *a_mvlc)
 	return 0;
 }
 
+#if 0 // Kept here for now, but use mvlcc_readout() instead which can do both ETH and USB.
 int
 readout_eth(eth::MVLC_ETH_Interface *a_eth, uint8_t *a_buffer,
     size_t a_buffer_len, size_t *a_bytes_transferred)
@@ -252,6 +253,7 @@ mvlcc_readout_eth(mvlcc_t a_mvlc, uint8_t **a_buffer, size_t bytes_free)
 
 	return rc;
 }
+#endif
 
 mvlcc_addr_width_t
 mvlcc_addr_width_from_arg(uint8_t modStr)
@@ -963,4 +965,48 @@ mvlcc_init_readout2(mvlcc_t a_mvlc, mvlcc_crateconfig_t crateconfig)
 	}
 
 	return rc;
+}
+
+struct mvlcc_readout_context
+{
+	mesytec::mvlc::MVLC mvlc;
+	mesytec::mvlc::ReadoutBuffer tmpBuffer;
+};
+
+mvlcc_readout_context_t mvlcc_readout_context_create()
+{
+	mvlcc_readout_context_t result = {};
+	set_d(result, new mvlcc_readout_context);
+	return result;
+}
+
+mvlcc_readout_context_t mvlcc_readout_context_create2(mvlcc_t a_mvlc)
+{
+	mvlcc_readout_context_t result = {};
+	auto d = set_d(result, new mvlcc_readout_context);
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	d->mvlc = m->mvlc;
+	return result;
+}
+
+void mvlcc_readout_context_destroy(mvlcc_readout_context_t ctx)
+{
+	delete get_d<mvlcc_readout_context>(ctx);
+}
+
+void mvlcc_readout_context_set_mvlc(mvlcc_readout_context_t ctx, mvlcc_t a_mvlc)
+{
+	auto d_ctx = get_d<mvlcc_readout_context>(ctx);
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	d_ctx->mvlc = m->mvlc;
+}
+
+int mvlcc_readout(mvlcc_readout_context_t ctx, uint8_t *dest, size_t bytes_free, size_t *bytes_used, int timeout_ms)
+{
+	auto d_ctx = get_d<mvlcc_readout_context>(ctx);
+
+	auto [ec, bytesRead] = mesytec::mvlc::readout(d_ctx->mvlc, d_ctx->tmpBuffer,
+		{ dest, bytes_free }, std::chrono::milliseconds(timeout_ms));
+	*bytes_used = bytesRead;
+	return ec.value();
 }
