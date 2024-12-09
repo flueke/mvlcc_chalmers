@@ -7,4 +7,4 @@ example/test4
 *.sw?
 build*/
 test/*.o
-test/test_*
+test/test_mvlcc_wrap

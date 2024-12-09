@@ -1,6 +1,6 @@
-ifeq (,$(QUIET))
-  QUIET:=@
-endif
+#ifeq (,$(QUIET))
+#  QUIET:=@
+#endif
 
 ifeq (,$(MVLC_DIR))
   $(error Need to set environment variable MVLC_DIR to point to the mesytec-mvlc repository)
@@ -17,7 +17,7 @@ CXXFLAGS += -fPIC
 CXXFLAGS += -Iinclude
 CXXFLAGS += -std=c++17
 CXXFLAGS += -I$(MVLC_DIR)/include -isystem $(MVLC_DIR)/include/mesytec-mvlc
-CXXFLAGS += -Wno-dangling-reference # silence spdlog + gcc-14 warnings
+#CXXFLAGS += -Wno-dangling-reference # silence spdlog + gcc-14 warnings
 
 ifeq (,$(MODE))
   CXXFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE
