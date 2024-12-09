@@ -649,7 +649,7 @@ const char *mvlcc_command_strerror(mvlcc_command_t cmd)
 char *mvlcc_command_to_string(mvlcc_command_t cmd)
 {
 	auto d = get_d<mvlcc_command>(cmd);
-	return strdup(mesytec::mvlc::to_string(d->cmd).c_str());
+	return strndup(mesytec::mvlc::to_string(d->cmd).c_str(), 1024);
 }
 
 uint32_t mvlcc_command_get_vme_address(mvlcc_command_t cmd)
@@ -737,13 +737,13 @@ int mvlcc_command_list_add_command(mvlcc_command_list_t cmd_list, const char *cm
 char *mvlcc_command_list_to_yaml(mvlcc_command_list_t cmd_list)
 {
 	auto d = get_d<mvlcc_command_list>(cmd_list);
-	return strdup(mesytec::mvlc::to_yaml(d->cmdList).c_str());
+	return strndup(mesytec::mvlc::to_yaml(d->cmdList).c_str(), 1024);
 }
 
 char *mvlcc_command_list_to_json(mvlcc_command_list_t cmd_list)
 {
 	auto d = get_d<mvlcc_command_list>(cmd_list);
-	return strdup(mesytec::mvlc::to_json(d->cmdList).c_str());
+	return strndup(mesytec::mvlc::to_json(d->cmdList).c_str(), 1024);
 }
 
 char *mvlcc_command_list_to_text(mvlcc_command_list_t cmd_list)
@@ -755,7 +755,7 @@ char *mvlcc_command_list_to_text(mvlcc_command_list_t cmd_list)
 		buffer += mesytec::mvlc::to_string(cmd) + "\n";
 	}
 
-	return strdup(buffer.c_str());
+	return strndup(buffer.c_str(), 1024);
 }
 
 int mvlcc_command_list_from_yaml(mvlcc_command_list_t *cmd_listp, const char *str)
@@ -853,13 +853,13 @@ void mvlcc_crateconfig_destroy(mvlcc_crateconfig_t crateconfig)
 char *mvlcc_crateconfig_to_yaml(mvlcc_crateconfig_t crateconfig)
 {
 	auto d = get_d<mvlcc_crateconfig>(crateconfig);
-	return strdup(mesytec::mvlc::to_yaml(d->config).c_str());
+	return strndup(mesytec::mvlc::to_yaml(d->config).c_str(), 1024);
 }
 
 char *mvlcc_crateconfig_to_json(mvlcc_crateconfig_t crateconfig)
 {
 	auto d = get_d<mvlcc_crateconfig>(crateconfig);
-	return strdup(mesytec::mvlc::to_json(d->config).c_str());
+	return strndup(mesytec::mvlc::to_json(d->config).c_str(), 1024);
 }
 
 int mvlcc_crateconfig_from_yaml(mvlcc_crateconfig_t *crateconfigp, const char *str)
