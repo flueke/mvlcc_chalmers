@@ -36,14 +36,22 @@ mvlcc_t
 mvlcc_make_mvlc_from_crate_config(const char *configname)
 {
 	auto m = new mvlcc();
-	std::ifstream config(configname);
-	if(!config.is_open()) {
-		printf("Could not open file '%s'\n", configname);
+	try
+	{
+		std::ifstream config(configname);
+		if(!config.is_open()) {
+			printf("Could not open file '%s'\n", configname);
+			return m;
+		}
+		m->config = crate_config_from_yaml(config);
+		m->mvlc = make_mvlc(m->config);
+		m->ethernet = dynamic_cast<eth::MVLC_ETH_Interface *>(m->mvlc.getImpl());
+		m->usb = dynamic_cast<usb::MVLC_USB_Interface *>(m->mvlc.getImpl());
 	}
-	m->config = crate_config_from_yaml(config);
-	m->mvlc = make_mvlc(m->config);
-	m->ethernet = dynamic_cast<eth::MVLC_ETH_Interface *>(
-	    m->mvlc.getImpl());
+	catch (const std::runtime_error &e)
+	{
+		printf("Error reading crate config: %s\n", e.what());
+	}
 	return m;
 }
 
@@ -124,7 +132,7 @@ mvlcc_disconnect(mvlcc_t a_mvlc)
 }
 
 int
-mvlcc_init_readout(mvlcc_t a_mvlc)
+mvlcc_init_readout(mvlcc_t a_mvlc, int)
 {
 	int rc;
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
@@ -383,6 +391,17 @@ int mvlcc_is_usb(mvlcc_t a_mvlc)
 {
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 	return m->usb != nullptr;
+}
+
+int mvlcc_set_daq_mode(mvlcc_t a_mvlc, bool enable)
+{
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	std::error_code ec;
+	if (enable)
+		ec = mesytec::mvlc::enable_daq_mode(m->mvlc);
+	else
+		ec = mesytec::mvlc::disable_daq_mode(m->mvlc);
+	return ec.value();
 }
 
 namespace
@@ -676,6 +695,22 @@ void mvlcc_command_add_to_vme_address(mvlcc_command_t cmd, uint32_t offset)
 	d->cmd.address += offset;
 }
 
+int mvlcc_run_command(mvlcc_t a_mvlc, mvlcc_command_t cmd, uint32_t *buffer, size_t size_in, size_t *size_out)
+{
+	auto m = static_cast<struct mvlcc *>(a_mvlc);
+	auto d_cmd = get_d<mvlcc_command>(cmd);
+	auto result = mesytec::mvlc::run_command(m->mvlc, d_cmd->cmd);
+	if (result.ec)
+		spdlog::warn("run_command() failed: cmd={}, ec={}", mesytec::mvlc::to_string(d_cmd->cmd), result.ec.message());
+	else
+		spdlog::info("run_command() ok: cmd={}, response={:#010x}", mesytec::mvlc::to_string(d_cmd->cmd), fmt::join(result.response, ", "));
+	const auto end = std::begin(result.response) + std::min(size_in, result.response.size());
+	std::copy(std::begin(result.response), end, buffer);
+	if (size_out)
+		*size_out = std::distance(std::begin(result.response), end);
+	return result.ec.value();
+}
+
 struct mvlcc_command_list: public mvlcc_error_buffer
 {
 	mesytec::mvlc::StackCommandBuilder cmdList;
@@ -707,12 +742,12 @@ size_t mvlcc_command_list_begin_module_group(mvlcc_command_list_t cmd_list, cons
 {
 	auto d = get_d<mvlcc_command_list>(cmd_list);
 	d->cmdList.beginGroup(name);
-	return d->cmdList.groupCount() - 1;
+	return d->cmdList.getGroupCount() - 1;
 }
 
 size_t mvlcc_command_list_get_module_group_count(mvlcc_command_list_t cmd_list)
 {
-	return get_d<mvlcc_command_list>(cmd_list)->cmdList.groupCount();
+	return get_d<mvlcc_command_list>(cmd_list)->cmdList.getGroupCount();
 }
 
 const char *mvlcc_command_list_get_module_group_name(mvlcc_command_list_t cmd_list, size_t index)
@@ -839,6 +874,16 @@ const char *mvlcc_command_list_strerror(mvlcc_command_list_t cmd_list)
 	return d->errorString.c_str();
 }
 
+mvlcc_command_t mvlcc_command_list_get_command(mvlcc_command_list_t cmd_list, size_t index)
+{
+	auto d = get_d<mvlcc_command_list>(cmd_list);
+	mvlcc_command_t result;
+	auto d_cmd = set_d(result, new mvlcc_command);
+	// superslow as the internal command vectors are flattened in getCommands()
+	d_cmd->cmd = d->cmdList.getCommands().at(index);
+	return result;
+}
+
 struct mvlcc_crateconfig: public mvlcc_error_buffer
 {
 	mesytec::mvlc::CrateConfig config;
@@ -870,8 +915,7 @@ char *mvlcc_crateconfig_to_json(mvlcc_crateconfig_t crateconfig)
 
 int mvlcc_crateconfig_from_yaml(mvlcc_crateconfig_t *crateconfigp, const char *str)
 {
-	*crateconfigp = mvlcc_createconfig_create();
-	auto d = get_d<mvlcc_crateconfig>(*crateconfigp);
+	auto d = set_d(*crateconfigp, new mvlcc_crateconfig);
 
 	try
 	{
@@ -887,8 +931,7 @@ int mvlcc_crateconfig_from_yaml(mvlcc_crateconfig_t *crateconfigp, const char *s
 
 int mvlcc_crateconfig_from_json(mvlcc_crateconfig_t *crateconfigp, const char *str)
 {
-	*crateconfigp = mvlcc_createconfig_create();
-	auto d = get_d<mvlcc_crateconfig>(*crateconfigp);
+	auto d = set_d(*crateconfigp, new mvlcc_crateconfig);
 
 	try
 	{
@@ -900,6 +943,40 @@ int mvlcc_crateconfig_from_json(mvlcc_crateconfig_t *crateconfigp, const char *s
 		d->errorString = e.what();
 		return -1;
 	}
+}
+
+inline bool ends_with(std::string const & value, std::string const & ending)
+{
+    if (ending.size() > value.size()) return false;
+    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
+int mvlcc_crateconfig_from_file(mvlcc_crateconfig_t *crateconfigp, const char *filename)
+{
+	std::ifstream f(filename);
+	std::stringstream buffer;
+	buffer << f.rdbuf();
+
+	if (ends_with(filename, ".json"))
+	{
+		return mvlcc_crateconfig_from_json(crateconfigp, buffer.str().c_str());
+	}
+	else
+	{
+		return mvlcc_crateconfig_from_yaml(crateconfigp, buffer.str().c_str());
+	}
+}
+
+const char *mvlcc_crateconfig_strerror(mvlcc_crateconfig_t crateconfig)
+{
+	auto d = get_d<mvlcc_crateconfig>(crateconfig);
+	return d->errorString.c_str();
+}
+
+mvlcc_t mvlcc_make_mvlc_from_crateconfig_t(mvlcc_crateconfig_t crateconfig)
+{
+	auto d = get_d<mvlcc_crateconfig>(crateconfig);
+	return make_mvlcc(mesytec::mvlc::make_mvlc(d->config), d->config);
 }
 
 mvlcc_command_list_t mvlcc_crateconfig_get_readout_stack(
@@ -932,6 +1009,22 @@ int mvlcc_crateconfig_set_readout_stack(
 	return 0;
 }
 
+mvlcc_command_list_t mvlcc_crateconfig_get_mcst_daq_start(mvlcc_crateconfig_t crateconfig)
+{
+	auto d_crateconfig = get_d<mvlcc_crateconfig>(crateconfig);
+	auto result = mvlcc_command_list_create();
+	get_d<mvlcc_command_list>(result)->cmdList = d_crateconfig->config.mcstDaqStart;
+	return result;
+}
+
+mvlcc_command_list_t mvlcc_crateconfig_get_mcst_daq_stop(mvlcc_crateconfig_t crateconfig)
+{
+	auto d_crateconfig = get_d<mvlcc_crateconfig>(crateconfig);
+	auto result = mvlcc_command_list_create();
+	get_d<mvlcc_command_list>(result)->cmdList = d_crateconfig->config.mcstDaqStop;
+	return result;
+}
+
 int
 mvlcc_init_readout2(mvlcc_t a_mvlc, mvlcc_crateconfig_t crateconfig)
 {
@@ -939,7 +1032,7 @@ mvlcc_init_readout2(mvlcc_t a_mvlc, mvlcc_crateconfig_t crateconfig)
 	auto m = static_cast<struct mvlcc *>(a_mvlc);
 	auto d_crateconfig = get_d<mvlcc_crateconfig>(crateconfig);
 
-	assert(m->ethernet);
+	assert(m->ethernet || m->usb);
 
 	auto result = init_readout(m->mvlc, d_crateconfig->config, {});
 
@@ -956,12 +1049,6 @@ mvlcc_init_readout2(mvlcc_t a_mvlc, mvlcc_crateconfig_t crateconfig)
 	 {
 		m->ethernet->resetPipeAndChannelStats();
 		send_empty_request(&m->mvlc);
-	}
-
-	auto ec = setup_readout_triggers(m->mvlc, m->config.triggers);
-	if (ec) {
-		printf("setup_readout_triggers: '%s'\n", ec.message().c_str());
-		return ec.value();
 	}
 
 	return rc;
@@ -1043,8 +1130,8 @@ struct mvlcc_readout_parser: public mvlcc_error_buffer
 {
   CrateConfig crateConfig;
   void *cUserContext;
-  event_data_callback_t cEventData;
-  system_event_callback_t cSystemEvent;
+  event_data_callback_t *cEventData;
+  system_event_callback_t *cSystemEvent;
   readout_parser::ReadoutParserCallbacks parserCallbacks;
   readout_parser::ReadoutParserState readoutParser;
   readout_parser::ReadoutParserCounters parserCounters;
@@ -1080,11 +1167,10 @@ int mvlcc_readout_parser_create(
   mvlcc_readout_parser_t *parserp,
   mvlcc_crateconfig_t crateconfig,
   void *userContext,
-  event_data_callback_t event_data_callback,
-  system_event_callback_t system_event_callback)
+  event_data_callback_t *event_data_callback,
+  system_event_callback_t *system_event_callback)
 {
-	mvlcc_readout_parser_t result = {};
-	auto d = set_d(result, new mvlcc_readout_parser);
+	auto d = set_d(*parserp, new mvlcc_readout_parser);
 
 	try
 	{
@@ -1102,6 +1188,11 @@ int mvlcc_readout_parser_create(
 		d->errorString = e.what();
 		return -1;
 	}
+}
+
+void mvlcc_readout_parser_destroy(mvlcc_readout_parser_t parser)
+{
+	delete get_d<mvlcc_readout_parser>(parser);
 }
 
 mvlcc_parse_result_t mvlcc_readout_parser_parse_buffer(

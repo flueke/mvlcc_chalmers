@@ -1,8 +1,9 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h> /* for FILE */
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,6 +42,7 @@ const char *mvlcc_strerror(int errnum);
 int mvlcc_is_mvlc_valid(mvlcc_t a_mvlc);
 int mvlcc_is_ethernet(mvlcc_t a_mvlc);
 int mvlcc_is_usb(mvlcc_t a_mvlc);
+int mvlcc_set_daq_mode(mvlcc_t, bool enable);
 
 /* Uses the internal mesytec::mvlc::CrateConfig set when
  * mvlcc_make_mvlc_from_crate_config() was used.
@@ -96,6 +98,7 @@ char *mvlcc_command_to_string(mvlcc_command_t cmd);
 uint32_t mvlcc_command_get_vme_address(mvlcc_command_t cmd);
 void mvlcc_command_set_vme_address(mvlcc_command_t cmd, uint32_t address);
 void mvlcc_command_add_to_vme_address(mvlcc_command_t cmd, uint32_t offset);
+int mvlcc_run_command(mvlcc_t a_mvlc, mvlcc_command_t cmd, uint32_t *buffer, size_t size_in, size_t *size_out);
 
 /* Wraps mesytec::mvlc::StackCommandBuilder */
 typedef struct
@@ -112,6 +115,7 @@ size_t mvlcc_command_list_get_module_group_count(mvlcc_command_list_t cmd_list);
 const char *mvlcc_command_list_get_module_group_name(mvlcc_command_list_t cmd_list, size_t index);
 int mvlcc_command_list_add_command(mvlcc_command_list_t cmd_list, const char *cmd_str);
 const char *mvlcc_command_list_strerror(mvlcc_command_list_t cmd_list);
+mvlcc_command_t mvlcc_command_list_get_command(mvlcc_command_list_t cmd_list, size_t index);
 
 /* The returned string must be free()'d by the caller. */
 char *mvlcc_command_list_to_yaml(mvlcc_command_list_t cmd_list);
@@ -144,6 +148,12 @@ char *mvlcc_crateconfig_to_json(mvlcc_crateconfig_t crateconfig);
 int mvlcc_crateconfig_from_yaml(mvlcc_crateconfig_t *crateconfigp, const char *str);
 int mvlcc_crateconfig_from_json(mvlcc_crateconfig_t *crateconfigp, const char *str);
 
+int mvlcc_crateconfig_from_file(mvlcc_crateconfig_t *crateconfigp, const char *filename);
+
+const char *mvlcc_crateconfig_strerror(mvlcc_crateconfig_t crateconfig);
+
+mvlcc_t mvlcc_make_mvlc_from_crateconfig_t(mvlcc_crateconfig_t crateconfig);
+
 /* Returns a copy of the crateconfigs readout stack. */
 mvlcc_command_list_t mvlcc_crateconfig_get_readout_stack(
   mvlcc_crateconfig_t crateconfig, unsigned stackId);
@@ -154,6 +164,9 @@ mvlcc_command_list_t mvlcc_crateconfig_get_readout_stack(
  */
 int mvlcc_crateconfig_set_readout_stack(
   mvlcc_crateconfig_t crateconfig, unsigned stackId, mvlcc_command_list_t cmd_list);
+
+mvlcc_command_list_t mvlcc_crateconfig_get_mcst_daq_start(mvlcc_crateconfig_t crateconfig);
+mvlcc_command_list_t mvlcc_crateconfig_get_mcst_daq_stop(mvlcc_crateconfig_t crateconfig);
 
 int mvlcc_init_readout2(mvlcc_t a_mvlc, mvlcc_crateconfig_t crateconfig);
 
@@ -167,7 +180,8 @@ mvlcc_readout_context_t mvlcc_readout_context_create2(mvlcc_t a_mvlc);
 void mvlcc_readout_context_destroy(mvlcc_readout_context_t ctx);
 void mvlcc_readout_context_set_mvlc(mvlcc_readout_context_t ctx, mvlcc_t a_mvlc);
 
-int mvlcc_readout(mvlcc_readout_context_t ctx, uint8_t *dest, size_t bytes_free, size_t *bytes_used, int timeout_ms);
+int mvlcc_readout(mvlcc_readout_context_t ctx,
+  uint8_t *dest, size_t bytes_free, size_t *bytes_used, int timeout_ms);
 
 typedef struct
 {
@@ -189,11 +203,16 @@ mvlcc_const_span_t mvlcc_module_data_get_dynamic(mvlcc_module_data_t md);
 mvlcc_const_span_t mvlcc_module_data_get_suffix(mvlcc_module_data_t md);
 int mvlcc_module_data_check_consistency(mvlcc_module_data_t md);
 
-typedef void (*event_data_callback_t)(void *userContext, int crateIndex, int eventIndex,
-  const mvlcc_module_data_t *moduleDataList, unsigned moduleCount);
+#define MVLCC_DEFINE_EVENT_CALLBACK(name) \
+  void name(void *userContext, int crateIndex, int eventIndex,\
+    const mvlcc_module_data_t *moduleDataList, unsigned moduleCount)
 
-typedef void (*system_event_callback_t)(void *userContext, int crateIndex,
-  mvlcc_const_span_t data);
+#define MVLCC_DEFINE_SYSTEM_CALLBACK(name) \
+  void name(void *userContext, int crateIndex,\
+    mvlcc_const_span_t data)
+
+typedef MVLCC_DEFINE_EVENT_CALLBACK(event_data_callback_t);
+typedef MVLCC_DEFINE_SYSTEM_CALLBACK(system_event_callback_t);
 
 typedef struct
 {
@@ -204,8 +223,10 @@ int mvlcc_readout_parser_create(
   mvlcc_readout_parser_t *parserp,
   mvlcc_crateconfig_t crateconfig,
   void *userContext,
-  event_data_callback_t event_data_callback,
-  system_event_callback_t system_event_callback);
+  event_data_callback_t *event_data_callback,
+  system_event_callback_t *system_event_callback);
+
+void mvlcc_readout_parser_destroy(mvlcc_readout_parser_t parser);
 
 typedef int mvlcc_parse_result_t;
 
@@ -216,7 +237,6 @@ mvlcc_parse_result_t mvlcc_readout_parser_parse_buffer(
   size_t linear_buffer_number,
   const uint32_t *buffer,
   size_t size);
-
 
 #ifdef __cplusplus
 }
