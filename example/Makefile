@@ -2,7 +2,7 @@ MVLCC_DIR = ../
 
 MVLCC_CONFIG = $(MVLCC_DIR)/bin/mvlcc-config.sh
 
-CFLAGS +=  $(shell $(MVLCC_CONFIG) --cflags) -ggdb -O0
+CFLAGS +=  $(shell $(MVLCC_CONFIG) --cflags) -ggdb -O2
 LDFLAGS += $(shell $(MVLCC_CONFIG) --ldflags)
 LIBS +=    $(shell $(MVLCC_CONFIG) --libs)
 
