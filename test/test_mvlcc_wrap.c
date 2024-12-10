@@ -72,9 +72,9 @@ void test_mvlcc_command_list_t()
     mu_check(strlen(json) > 0);
     mu_check(strlen(text) > 0);
 
-    fprintf(stderr, "YAML:\n%s\n", yaml);
-    fprintf(stderr, "JSON:\n%s\n", json);
-    fprintf(stderr, "TEXT:\n%s\n", text);
+    //fprintf(stderr, "YAML:\n%s\n", yaml);
+    //fprintf(stderr, "JSON:\n%s\n", json);
+    //fprintf(stderr, "TEXT:\n%s\n", text);
 
     free(yaml);
     free(json);
