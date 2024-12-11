@@ -1094,7 +1094,8 @@ int mvlcc_readout(mvlcc_readout_context_t ctx, uint8_t *dest, size_t bytes_free,
 
 	auto [ec, bytesRead] = mesytec::mvlc::readout(d_ctx->mvlc, d_ctx->tmpBuffer,
 		{ dest, bytes_free }, std::chrono::milliseconds(timeout_ms));
-	*bytes_used = bytesRead;
+	if (bytes_used)
+		*bytes_used = bytesRead;
 	return ec.value();
 }
 
