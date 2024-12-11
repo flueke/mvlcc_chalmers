@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
     /* Do actually need all these at the top for the goto error cleanup to work. */
     mvlcc_crateconfig_t crateconfig = {};
     mvlcc_readout_parser_t parser = {};
-    mvlcc_t mvlc = {};
+    mvlcc_t mvlc = NULL;
     mvlcc_command_list_t mcst_start_commands = {};
     mvlcc_command_list_t mcst_stop_commands = {};
     mvlcc_readout_context_t readout_context = {};
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 
     if (argc < 2)
     {
-        fprintf(stderr, "Usage: %s <crateconfig> [<duration_s>]\n", argv[0]);
+        fprintf(stdout, "Usage: %s <crateconfig> [<duration_s>]\n", argv[0]);
         return 1;
     }
 
@@ -85,14 +85,14 @@ int main(int argc, char *argv[])
         duration_s = atoi(argv[2]);
         if (duration_s < 0)
         {
-            fprintf(stderr, "Invalid duration: %s\n", argv[2]);
+            fprintf(stdout, "Invalid duration: %s\n", argv[2]);
             return 1;
         }
     }
 
     if ((res = mvlcc_crateconfig_from_file(&crateconfig, config_filename)))
     {
-        fprintf(stderr, "Error reading crate config: %s\n", mvlcc_crateconfig_strerror(crateconfig));
+        fprintf(stdout, "Error reading crate config: %s\n", mvlcc_crateconfig_strerror(crateconfig));
         goto free_things;
     }
 
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 
     if ((res = mvlcc_readout_parser_create(&parser, crateconfig, &user_context, event_data_callback, system_event_callback)))
     {
-        fprintf(stderr, "Error creating readout parser: %s\n", mvlcc_strerror(res));
+        fprintf(stdout, "Error creating readout parser: %s\n", mvlcc_strerror(res));
         goto free_things;
     }
 
@@ -108,19 +108,19 @@ int main(int argc, char *argv[])
 
     if (!mvlcc_is_mvlc_valid(mvlc))
     {
-        fprintf(stderr, "Error creating MVLC from crate config\n");
+        fprintf(stdout, "Error creating MVLC from crate config\n");
         goto free_things;
     }
 
     if ((res = mvlcc_connect(mvlc)))
     {
-        fprintf(stderr, "Error connecting to MVLC: %s\n", mvlcc_strerror(res));
+        fprintf(stdout, "Error connecting to MVLC: %s\n", mvlcc_strerror(res));
         goto free_things;
     }
 
     if ((res = mvlcc_init_readout2(mvlc, crateconfig)))
     {
-        fprintf(stderr, "Error initializing readout: %s\n", mvlcc_strerror(res));
+        fprintf(stdout, "Error initializing readout: %s\n", mvlcc_strerror(res));
         goto free_things;
     }
 
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
      * initialized and 'ready' at this point but not yet started. */
     if ((res = mvlcc_set_daq_mode(mvlc, true)))
     {
-        fprintf(stderr, "Error enabling DAQ mode: %s\n", mvlcc_strerror(res));
+        fprintf(stdout, "Error enabling DAQ mode: %s\n", mvlcc_strerror(res));
         goto free_things;
     }
 
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
      * already be running in a different thread. */
     if ((res = run_commands(mvlc, mcst_start_commands)))
     {
-        fprintf(stderr, "Error running MCST DAQ start commands: %s\n", mvlcc_strerror(res));
+        fprintf(stdout, "Error running MCST DAQ start commands: %s\n", mvlcc_strerror(res));
         goto free_things;
     }
 
@@ -168,14 +168,14 @@ int main(int argc, char *argv[])
 
         if (res)
         {
-            fprintf(stderr, "Error reading out data: %s\n", mvlcc_strerror(res));
+            fprintf(stdout, "Error reading out data: %s\n", mvlcc_strerror(res));
             break;
         }
 
-        fprintf(stderr, "readout received %zu bytes / %zu words\n", readout_buffer.used, readout_buffer.used / 4);
-
         if (readout_buffer.used == 0)
             continue;
+
+        fprintf(stdout, "readout received %zu bytes / %zu words\n", readout_buffer.used, readout_buffer.used / 4);
 
         mvlcc_parse_result_t parse_result = mvlcc_readout_parser_parse_buffer(
             parser, linear_buffer_number++,
@@ -183,7 +183,9 @@ int main(int argc, char *argv[])
 
         if (parse_result != 0)
         {
-            fprintf(stderr, "Error parsing readout buffer: %s\n", mvlcc_parse_result_to_string(parse_result));
+            fprintf(stdout, "Error parsing readout buffer: %s\n", mvlcc_parse_result_to_string(parse_result));
+            print_buffer(stdout, (const uint32_t *)readout_buffer.data, readout_buffer.used / 4, "readout_data:");
+            fprintf(stdout, "\n");
         }
 
         total_bytes += readout_buffer.used;
@@ -214,26 +216,26 @@ int main(int argc, char *argv[])
             keepRunning = false;
     }
 
-    fprintf(stderr, "Stopping readout\n");
+    fprintf(stdout, "Stopping readout\n");
 
     /* Ideally the readout would still be running in another thread. */
 
     if ((res = run_commands(mvlc, mcst_stop_commands)))
     {
-        fprintf(stderr, "Error running MCST DAQ stop commands: %s\n", mvlcc_strerror(res));
+        fprintf(stdout, "Error running MCST DAQ stop commands: %s\n", mvlcc_strerror(res));
         goto free_things;
     }
 
     if ((res = mvlcc_set_daq_mode(mvlc, false)))
     {
-        fprintf(stderr, "Error disabling DAQ mode: %s\n", mvlcc_strerror(res));
+        fprintf(stdout, "Error disabling DAQ mode: %s\n", mvlcc_strerror(res));
         goto free_things;
     }
 
-    fprintf(stderr, "Readout stopped\n");
+    fprintf(stdout, "Readout stopped\n");
 
 free_things:
-    fprintf(stderr, "Free all the things!\n");
+    fprintf(stdout, "Free all the things!\n");
     free(readout_buffer.data);
     mvlcc_readout_context_destroy(readout_context);
     mvlcc_command_list_destroy(mcst_start_commands);
