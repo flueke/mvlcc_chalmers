@@ -717,7 +717,7 @@ struct mvlcc_command_list: public mvlcc_error_buffer
 	mesytec::mvlc::StackCommandBuilder cmdList;
 };
 
-mvlcc_command_list_t mvlcc_command_list_create()
+mvlcc_command_list_t mvlcc_command_list_create(void)
 {
 	mvlcc_command_list_t result = {};
 	set_d(result, new mvlcc_command_list);
@@ -891,7 +891,7 @@ struct mvlcc_crateconfig: public mvlcc_error_buffer
 	mesytec::mvlc::CrateConfig config;
 };
 
-mvlcc_crateconfig_t mvlcc_createconfig_create()
+mvlcc_crateconfig_t mvlcc_createconfig_create(void)
 {
 	mvlcc_crateconfig_t result = {};
 	set_d(result, new mvlcc_crateconfig);
@@ -1063,7 +1063,7 @@ struct mvlcc_readout_context
 	mesytec::mvlc::ReadoutBuffer tmpBuffer;
 };
 
-mvlcc_readout_context_t mvlcc_readout_context_create()
+mvlcc_readout_context_t mvlcc_readout_context_create(void)
 {
 	mvlcc_readout_context_t result = {};
 	set_d(result, new mvlcc_readout_context);

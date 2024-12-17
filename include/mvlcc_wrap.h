@@ -106,7 +106,7 @@ typedef struct
   intptr_t d;
 } mvlcc_command_list_t;
 
-mvlcc_command_list_t mvlcc_command_list_create();
+mvlcc_command_list_t mvlcc_command_list_create(void);
 void mvlcc_command_list_destroy(mvlcc_command_list_t *cmd_list);
 void mvlcc_command_list_clear(mvlcc_command_list_t cmd_list);
 size_t mvlcc_command_list_total_size(mvlcc_command_list_t cmd_list);
@@ -138,7 +138,7 @@ typedef struct
   intptr_t d;
 } mvlcc_crateconfig_t;
 
-mvlcc_crateconfig_t mvlcc_createconfig_create();
+mvlcc_crateconfig_t mvlcc_createconfig_create(void);
 void mvlcc_crateconfig_destroy(mvlcc_crateconfig_t *crateconfig);
 
 /* The returned string must be free()'d by the caller. */
@@ -175,7 +175,7 @@ typedef struct
   intptr_t d;
 } mvlcc_readout_context_t;
 
-mvlcc_readout_context_t mvlcc_readout_context_create();
+mvlcc_readout_context_t mvlcc_readout_context_create(void);
 mvlcc_readout_context_t mvlcc_readout_context_create2(mvlcc_t a_mvlc);
 void mvlcc_readout_context_destroy(mvlcc_readout_context_t *ctx);
 void mvlcc_readout_context_set_mvlc(mvlcc_readout_context_t ctx, mvlcc_t a_mvlc);
