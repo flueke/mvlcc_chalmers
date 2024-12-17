@@ -73,17 +73,17 @@ int main(int argc, char *argv[])
 
     if (argc < 2)
     {
-        fprintf(stdout, "Usage: %s <crateconfig> [<duration_s>]\n", argv[0]);
+        fprintf(stdout, "Usage: %s <crateconfig> [<max_duration_s>]\n", argv[0]);
         return 1;
     }
 
     const char *config_filename = argv[1];
-    int duration_s = 0;
+    int max_duration_s = 0;
 
     if (argc > 2)
     {
-        duration_s = atoi(argv[2]);
-        if (duration_s < 0)
+        max_duration_s = atoi(argv[2]);
+        if (max_duration_s < 0)
         {
             fprintf(stdout, "Invalid duration: %s\n", argv[2]);
             return 1;
@@ -133,7 +133,6 @@ int main(int argc, char *argv[])
     readout_buffer.capacity = readout_buffer_size;
 
     int readout_timeout_ms = 500;
-    bool keepRunning = true;
 
     /* Enables trigger processing of the MVLC. It is assumed that modules are
      * initialized and 'ready' at this point but not yet started. */
@@ -158,7 +157,7 @@ int main(int argc, char *argv[])
     size_t total_bytes = 0;
     size_t report_bytes = 0;
 
-    while (keepRunning)
+    while (!signal_received_)
     {
         readout_buffer.used = 0;
 
@@ -207,16 +206,23 @@ int main(int argc, char *argv[])
             report_bytes = 0;
         }
 
-        if (signal_received_)
-            keepRunning = false;
+        if (max_duration_s > 0)
+        {
+            timeval_subtract(&delta, &now, &start_time);
+            double total_s = tv_to_ms(&delta) / 1000.0;
 
-        timeval_subtract(&delta, &now, &start_time);
-        double total_millis = tv_to_ms(&delta);
-        if (total_millis >= 5 * 1000)
-            keepRunning = false;
+            if (total_s >= max_duration_s)
+            {
+                fprintf(stdout, "Time to run reached, stopping readout\n");
+                break;
+            }
+        }
     }
 
-    fprintf(stdout, "Stopping readout\n");
+    if (signal_received_)
+        fprintf(stdout, "Signal received, stopping readout\n");
+    else
+        fprintf(stdout, "Stopping readout\n");
 
     /* Ideally the readout would still be running in another thread. */
 
