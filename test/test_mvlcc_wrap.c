@@ -29,7 +29,7 @@ MU_TEST(test_mvlcc_command_t_good)
     vmeAddress = mvlcc_command_get_vme_address(cmd);
     mu_assert_uint_eq(0x87654421u, vmeAddress);
 
-    mvlcc_command_destroy(cmd);
+    mvlcc_command_destroy(&cmd);
 }
 
 MU_TEST(test_mvlcc_command_t_bad)
@@ -39,7 +39,7 @@ MU_TEST(test_mvlcc_command_t_bad)
     mu_check(res != 0);
     mu_check(strlen(mvlcc_command_strerror(cmd)) > 0);
     // Still have to destroy it! The error string buffer is kept in there.
-    mvlcc_command_destroy(cmd);
+    mvlcc_command_destroy(&cmd);
 }
 
 void test_mvlcc_command_list_t()
@@ -80,7 +80,7 @@ void test_mvlcc_command_list_t()
     free(json);
     free(text);
 
-    mvlcc_command_list_destroy(cmdList);
+    mvlcc_command_list_destroy(&cmdList);
 }
 
 void test_mvlcc_command_list_t_text()
@@ -92,7 +92,7 @@ void test_mvlcc_command_list_t_text()
     mu_check(strlen(mvlcc_command_list_strerror(cmdList)) == 0);
     mu_assert_int_eq(1, mvlcc_command_list_get_module_group_count(cmdList));
     mu_assert_uint_eq(2, mvlcc_command_list_total_size(cmdList));
-    mvlcc_command_list_destroy(cmdList);
+    mvlcc_command_list_destroy(&cmdList);
 
     res = mvlcc_command_list_from_text(&cmdList, "foobar 0x09 d16 0x12345678\nvme_read 0x0a d32 0x87654321");
     mu_check(res != 0);
@@ -100,7 +100,7 @@ void test_mvlcc_command_list_t_text()
     mu_assert_int_eq(0, mvlcc_command_list_get_module_group_count(cmdList));
     mu_assert_uint_eq(0, mvlcc_command_list_total_size(cmdList));
     // Still have to destroy it! The error string buffer is kept in there.
-    mvlcc_command_list_destroy(cmdList);
+    mvlcc_command_list_destroy(&cmdList);
 }
 
 void test_mvlcc_command_list_t_yaml()
@@ -120,7 +120,7 @@ void test_mvlcc_command_list_t_yaml()
     mu_check(strlen(mvlcc_command_list_strerror(cmdList)) == 0);
     mu_assert_int_eq(1, mvlcc_command_list_get_module_group_count(cmdList));
     mu_assert_uint_eq(2, mvlcc_command_list_total_size(cmdList));
-    mvlcc_command_list_destroy(cmdList);
+    mvlcc_command_list_destroy(&cmdList);
 }
 
 void test_mvlcc_command_list_t_json()
@@ -147,7 +147,7 @@ void test_mvlcc_command_list_t_json()
     mu_check(strlen(mvlcc_command_list_strerror(cmdList)) == 0);
     mu_assert_int_eq(1, mvlcc_command_list_get_module_group_count(cmdList));
     mu_assert_uint_eq(2, mvlcc_command_list_total_size(cmdList));
-    mvlcc_command_list_destroy(cmdList);
+    mvlcc_command_list_destroy(&cmdList);
 }
 
 void test_mvlcc_crateconfig_t()
@@ -166,9 +166,9 @@ void test_mvlcc_crateconfig_t()
 
     mu_check(mvlcc_command_list_eq(cmdList1, cmdList2));
 
-    mvlcc_command_list_destroy(cmdList1);
-    mvlcc_command_list_destroy(cmdList2);
-    mvlcc_crateconfig_destroy(crateConfig);
+    mvlcc_command_list_destroy(&cmdList1);
+    mvlcc_command_list_destroy(&cmdList2);
+    mvlcc_crateconfig_destroy(&crateConfig);
 }
 
 void test_mvlcc_module_data_t()

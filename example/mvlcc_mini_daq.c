@@ -243,12 +243,12 @@ int main(int argc, char *argv[])
 free_things:
     fprintf(stdout, "Free all the things!\n");
     free(readout_buffer.data);
-    mvlcc_readout_context_destroy(readout_context);
-    mvlcc_command_list_destroy(mcst_start_commands);
-    mvlcc_command_list_destroy(mcst_stop_commands);
+    mvlcc_readout_context_destroy(&readout_context);
+    mvlcc_command_list_destroy(&mcst_start_commands);
+    mvlcc_command_list_destroy(&mcst_stop_commands);
     mvlcc_free_mvlc(mvlc);
-    mvlcc_readout_parser_destroy(parser);
-    mvlcc_crateconfig_destroy(crateconfig);
+    mvlcc_readout_parser_destroy(&parser);
+    mvlcc_crateconfig_destroy(&crateconfig);
 
     return res == 0 ? 0 : 1;
 }
@@ -263,7 +263,7 @@ int run_commands(mvlcc_t mvlc, mvlcc_command_list_t cmds)
         mvlcc_command_t cmd = mvlcc_command_list_get_command(cmds, i);
         // not interested in the response contents, just the status
         res = mvlcc_run_command(mvlc, cmd, NULL, 0, NULL);
-        mvlcc_command_destroy(cmd);
+        mvlcc_command_destroy(&cmd);
 
         if (res)
             break;

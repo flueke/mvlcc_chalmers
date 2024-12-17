@@ -660,9 +660,10 @@ int mvlcc_command_from_string(mvlcc_command_t *cmdp, const char *str)
 	}
 }
 
-void mvlcc_command_destroy(mvlcc_command_t cmd)
+void mvlcc_command_destroy(mvlcc_command_t *cmd)
 {
-	delete get_d<mvlcc_command>(cmd);
+	delete get_d<mvlcc_command>(*cmd);
+	cmd->d = 0;
 }
 
 const char *mvlcc_command_strerror(mvlcc_command_t cmd)
@@ -723,9 +724,10 @@ mvlcc_command_list_t mvlcc_command_list_create()
 	return result;
 }
 
-void mvlcc_command_list_destroy(mvlcc_command_list_t cmd_list)
+void mvlcc_command_list_destroy(mvlcc_command_list_t *cmd_list)
 {
-	delete get_d<mvlcc_command_list>(cmd_list);
+	delete get_d<mvlcc_command_list>(*cmd_list);
+	cmd_list->d = 0;
 }
 
 void mvlcc_command_list_clear(mvlcc_command_list_t cmd_list)
@@ -896,9 +898,10 @@ mvlcc_crateconfig_t mvlcc_createconfig_create()
 	return result;
 }
 
-void mvlcc_crateconfig_destroy(mvlcc_crateconfig_t crateconfig)
+void mvlcc_crateconfig_destroy(mvlcc_crateconfig_t *crateconfig)
 {
-	delete get_d<mvlcc_crateconfig>(crateconfig);
+	delete get_d<mvlcc_crateconfig>(*crateconfig);
+	crateconfig->d = 0;
 }
 
 char *mvlcc_crateconfig_to_yaml(mvlcc_crateconfig_t crateconfig)
@@ -1076,9 +1079,10 @@ mvlcc_readout_context_t mvlcc_readout_context_create2(mvlcc_t a_mvlc)
 	return result;
 }
 
-void mvlcc_readout_context_destroy(mvlcc_readout_context_t ctx)
+void mvlcc_readout_context_destroy(mvlcc_readout_context_t *ctx)
 {
-	delete get_d<mvlcc_readout_context>(ctx);
+	delete get_d<mvlcc_readout_context>(*ctx);
+	ctx->d = 0;
 }
 
 void mvlcc_readout_context_set_mvlc(mvlcc_readout_context_t ctx, mvlcc_t a_mvlc)
@@ -1191,9 +1195,10 @@ int mvlcc_readout_parser_create(
 	}
 }
 
-void mvlcc_readout_parser_destroy(mvlcc_readout_parser_t parser)
+void mvlcc_readout_parser_destroy(mvlcc_readout_parser_t *parser)
 {
-	delete get_d<mvlcc_readout_parser>(parser);
+	delete get_d<mvlcc_readout_parser>(*parser);
+	parser->d = 0;
 }
 
 mvlcc_parse_result_t mvlcc_readout_parser_parse_buffer(
